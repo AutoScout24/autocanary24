@@ -1,5 +1,5 @@
-require "as24_ecr/version"
-require "as24_ecr/client"
+require "autocanary24/version"
+require "autocanary24/client"
 require 'aws-sdk-core'
 require 'base64'
 

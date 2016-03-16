@@ -5,7 +5,7 @@ require 'autocanary24/version'
 
 Gem::Specification.new do |spec|
   spec.name          = "autocanary24"
-  spec.version       = As24Ecr::VERSION
+  spec.version       = AutoCanary24::VERSION
   spec.authors       = ["Philipp Garbe"]
   spec.email         = ["pgarbe@autoscout24.com"]
 
