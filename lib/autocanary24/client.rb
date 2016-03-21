@@ -127,27 +127,19 @@ module AutoCanary24
     end
 
     def get_elb(stack_name)
-      client = Aws::CloudFormation::Client.new
-
-      resp = client.list_stack_resources({
-        stack_name: stack_name
-      })
-
-      elbs = resp.data.stack_resource_summaries.select{|x| x[:resource_type] == "AWS::ElasticLoadBalancing::LoadBalancer" }.map { |e| e.physical_resource_id  }
-
-      elbs[0]
+      get_first_resource_id(stack_name, 'AWS::ElasticLoadBalancing::LoadBalancer')
     end
 
     def get_autoscaling_group(stack_name)
+      get_first_resource_id(stack_name, 'AWS::AutoScaling::AutoScalingGroup')
+    end
+
+    def get_first_resource_id(stack_name, resource_type)
       client = Aws::CloudFormation::Client.new
+      resp = client.list_stack_resources({ stack_name: stack_name }).data.stack_resource_summaries
 
-      resp = client.list_stack_resources({
-        stack_name: stack_name
-      })
-
-      asgs = resp.data.stack_resource_summaries.select{|x| x[:resource_type] == "AWS::AutoScaling::AutoScalingGroup" }.map { |e| e.physical_resource_id  }
-
-      asgs[0]
+      resource_ids = resp.select{|x| x[:resource_type] == resource_type }.map { |e| e.physical_resource_id }
+      resource_ids[0]
     end
 
     def get_attached_loadbalancers(asg)
