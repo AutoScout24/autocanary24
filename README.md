@@ -32,11 +32,18 @@ ac.deploy_stack(stack_name, template, parameters, parent_stack_name = nil, tags 
 ```
 
 The available configuration:
-- `inactive_stack_state`: Defines what should happen with the inactive stack
+- `inactive_stack_state`: Defines what should happen with the inactive stack (IN_SERVICE, STANDBY or TERMINATE)
 - `inactive_stack_state_after`: Wait time until the inactive_stack_state is applied to the inactive stack (will be ignored when inactive_stack_state is inService)
-- `keep_instances_balanced`: If true a instance from current stack gets removed whenever a new instance from the new stack is added.
+- `keep_instances_balanced`: If `true` a instance from current stack gets removed whenever a new instance from the new stack is added. If `false` first all new instances are created and afterwards the old instances gets removed.
 - `scaling_instance_percent`: Percent of instances which are added at once (depends on the actual number of instances, read from desired)
 - `scaling_wait_interval`: Wait time before the next instances are added
+
+> It's not necessary to set the [desired count]() as this will be overwritten by `AutoCanary24`.
+
+### Examples
+TODO: `High Availability` (inservice, balanced=false)  
+TODO: `Fast` (standby, 100%, no wait interval)  
+TODO: `Secure`  
 
 
 ## Development
