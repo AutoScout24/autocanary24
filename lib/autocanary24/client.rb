@@ -11,20 +11,20 @@ module AutoCanary24
 
     def get_stacks_to_create_and_to_delete_for(stack_name, elb)
 
-      stack_blue = "#{stack_name}_B"
-      stack_green = "#{stack_name}_G"
+      stack_blue = "#{stack_name}-B"
+      stack_green = "#{stack_name}-G"
 
       green_elbs = blue_elbs = []
       if find_stack(stack_green)
         puts "found green"
         green_asg = get_autoscaling_group(stack_green)
-        green_elbs = get_attached_loadbalancers(green_asg)
+        green_elbs = get_attached_loadbalancers(green_asg) unless green_asg.nil?
       end
 
       if find_stack(stack_blue)
         puts "found blue"
         blue_asg = get_autoscaling_group(stack_blue)
-        blue_elbs = get_attached_loadbalancers(blue_asg)
+        blue_elbs = get_attached_loadbalancers(blue_asg) unless blue_asg.nil?
       end
 
       to_delete = nil
@@ -127,15 +127,27 @@ module AutoCanary24
     end
 
     def get_elb(stack_name)
-      puts "get_elb"
-      # TODO Find a better way to avoid the dependency to the 'AutoScalingGroup' output
-      Stacker.get_stack_output(stack_name)[:Loadbalancer]
+      client = Aws::CloudFormation::Client.new
+
+      resp = client.list_stack_resources({
+        stack_name: stack_name
+      })
+
+      elbs = resp.data.stack_resource_summaries.select{|x| x[:resource_type] == "AWS::ElasticLoadBalancing::LoadBalancer" }.map { |e| e.physical_resource_id  }
+
+      elbs[0]
     end
 
     def get_autoscaling_group(stack_name)
-      puts "get_autoscaling_group"
-      # TODO Find a better way to avoid the dependency to the 'AutoScalingGroup' output
-      Stacker.get_stack_output(stack_green)[:AutoScalingGroup]
+      client = Aws::CloudFormation::Client.new
+
+      resp = client.list_stack_resources({
+        stack_name: stack_name
+      })
+
+      asgs = resp.data.stack_resource_summaries.select{|x| x[:resource_type] == "AWS::AutoScaling::AutoScalingGroup" }.map { |e| e.physical_resource_id  }
+
+      asgs[0]
     end
 
     def get_attached_loadbalancers(asg)
