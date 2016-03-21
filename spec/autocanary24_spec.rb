@@ -9,45 +9,45 @@ describe AutoCanary24::Client do
 
     describe 'when blue is currently active' do
       before do
-        allow(ac24).to receive(:find_stack).with('mystack_B').and_return(true)
-        allow(ac24).to receive(:find_stack).with('mystack_G').and_return(false)
+        allow(ac24).to receive(:find_stack).with('mystack-B').and_return(true)
+        allow(ac24).to receive(:find_stack).with('mystack-G').and_return(false)
 
         allow(ac24).to receive(:get_autoscaling_group).and_return('asg')
         allow(ac24).to receive(:get_attached_loadbalancers).and_return(loadbalancer)
       end
 
       it 'should activate the green stack' do
-        expect(ac24.get_stacks_to_create_and_to_delete_for('mystack', elb)).to eq({stack_name_to_delete: 'mystack_B', stack_name_to_create: 'mystack_G'})
+        expect(ac24.get_stacks_to_create_and_to_delete_for('mystack', elb)).to eq({stack_name_to_delete: 'mystack-B', stack_name_to_create: 'mystack-G'})
       end
     end
 
     describe 'when green is currently active' do
       before do
-        allow(ac24).to receive(:find_stack).with('mystack_B').and_return(false)
-        allow(ac24).to receive(:find_stack).with('mystack_G').and_return(true)
+        allow(ac24).to receive(:find_stack).with('mystack-B').and_return(false)
+        allow(ac24).to receive(:find_stack).with('mystack-G').and_return(true)
 
         allow(ac24).to receive(:get_autoscaling_group).and_return('asg')
         allow(ac24).to receive(:get_attached_loadbalancers).and_return(loadbalancer)
       end
 
       it 'should activate the blue stack' do
-        expect(ac24.get_stacks_to_create_and_to_delete_for('mystack', elb)).to eq({stack_name_to_delete: 'mystack_G', stack_name_to_create: 'mystack_B'})
+        expect(ac24.get_stacks_to_create_and_to_delete_for('mystack', elb)).to eq({stack_name_to_delete: 'mystack-G', stack_name_to_create: 'mystack-B'})
       end
     end
 
     describe 'when no stack is active' do
       before do
-        allow(ac24).to receive(:find_stack).with('mystack_B').and_return(false)
-        allow(ac24).to receive(:find_stack).with('mystack_G').and_return(false)
+        allow(ac24).to receive(:find_stack).with('mystack-B').and_return(false)
+        allow(ac24).to receive(:find_stack).with('mystack-G').and_return(false)
       end
 
       it 'should activate the blue stack' do
-        expect(ac24.get_stacks_to_create_and_to_delete_for('mystack', elb)).to eq({stack_name_to_delete: nil, stack_name_to_create: 'mystack_B'})
+        expect(ac24.get_stacks_to_create_and_to_delete_for('mystack', elb)).to eq({stack_name_to_delete: nil, stack_name_to_create: 'mystack-B'})
       end
     end
 
     describe 'when desired count of active stack is 5' do
-      let(:stacks) { {:stack_name_to_create => 'mystack_B', :stack_name_to_delete => 'mystack_G'} }
+      let(:stacks) { {:stack_name_to_create => 'mystack-B', :stack_name_to_delete => 'mystack-G'} }
       let(:template) { 'template' }
       let(:parameters) { {:para1=>"value"} }
       let(:parent_stack_name) { 'mystack' }
@@ -55,8 +55,8 @@ describe AutoCanary24::Client do
 
       it 'should create the new stack' do
         allow(ac24).to receive(:create_stack)
-        allow(ac24).to receive(:get_desired_count).with('mystack_G').and_return(5)
-        expect(ac24).to receive(:create_stack).with('mystack_B', template, parameters, parent_stack_name, tags)
+        allow(ac24).to receive(:get_desired_count).with('mystack-G').and_return(5)
+        expect(ac24).to receive(:create_stack).with('mystack-B', template, parameters, parent_stack_name, tags)
 
         ac24.before_switch(stacks, template, parameters, parent_stack_name, tags)
       end
@@ -64,8 +64,8 @@ describe AutoCanary24::Client do
       it 'should be 5 instances after creation' do
 
         allow(ac24).to receive(:create_stack)
-        allow(ac24).to receive(:get_desired_count).with('mystack_G').and_return(5)
-        expect(ac24).to receive(:set_desired_count).with('mystack_B', 5)
+        allow(ac24).to receive(:get_desired_count).with('mystack-G').and_return(5)
+        expect(ac24).to receive(:set_desired_count).with('mystack-B', 5)
 
         ac24.before_switch(stacks, nil, nil, nil, nil)
       end
@@ -76,11 +76,11 @@ describe AutoCanary24::Client do
   context 'Switch (Blue/Green)' do
 
     describe 'when switching from Blue to Green stack' do
-      let(:stacks) { {:stack_name_to_create => 'mystack_G', :stack_name_to_delete => 'mystack_B'} }
+      let(:stacks) { {:stack_name_to_create => 'mystack-G', :stack_name_to_delete => 'mystack-B'} }
 
       it 'should attach the ASG from Green stack to the ELB' do
-        allow(ac24).to receive(:get_autoscaling_group).with('mystack_G').and_return('ASG_G')
-        allow(ac24).to receive(:get_autoscaling_group).with('mystack_B').and_return('ASG_B')
+        allow(ac24).to receive(:get_autoscaling_group).with('mystack-G').and_return('ASG_G')
+        allow(ac24).to receive(:get_autoscaling_group).with('mystack-B').and_return('ASG_B')
         allow(ac24).to receive(:wait_for_instances)
 
         expect(ac24).to receive(:attach_asg_to_elb).with('ASG_G', elb)
@@ -89,8 +89,8 @@ describe AutoCanary24::Client do
       end
 
       it 'should wait until all instances from Green ASG are marked as healthy in ELB' do
-        allow(ac24).to receive(:get_autoscaling_group).with('mystack_G').and_return('ASG_G')
-        allow(ac24).to receive(:get_autoscaling_group).with('mystack_B').and_return('ASG_B')
+        allow(ac24).to receive(:get_autoscaling_group).with('mystack-G').and_return('ASG_G')
+        allow(ac24).to receive(:get_autoscaling_group).with('mystack-B').and_return('ASG_B')
 
         expect(ac24).to receive(:attach_asg_to_elb).ordered
         expect(ac24).to receive(:wait_for_instances).with('ASG_G', elb).ordered
@@ -99,8 +99,8 @@ describe AutoCanary24::Client do
       end
 
       it 'should detach the ASG from Blue stack from the ELB' do
-        allow(ac24).to receive(:get_autoscaling_group).with('mystack_G').and_return('ASG_G')
-        allow(ac24).to receive(:get_autoscaling_group).with('mystack_B').and_return('ASG_B')
+        allow(ac24).to receive(:get_autoscaling_group).with('mystack-G').and_return('ASG_G')
+        allow(ac24).to receive(:get_autoscaling_group).with('mystack-B').and_return('ASG_B')
 
         expect(ac24).to receive(:wait_for_instances).ordered
         expect(ac24).to receive(:detach_asg_from_elb).with('ASG_B', elb).ordered
