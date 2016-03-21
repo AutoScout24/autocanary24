@@ -8,6 +8,9 @@
     "InstanceSecurityGroup": {
       "Type": "String"
     },
+    "ElasticLoadBalancer": {
+      "Type": "String"
+    },
     "InstanceType" : {
       "Description" : "WebServer EC2 instance type",
       "Type" : "String",
@@ -164,14 +167,9 @@
         "LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
         "MinSize" : "1",
         "MaxSize" : "3",
-        "LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ],
-        "NotificationConfiguration" : {
-          "TopicARN" : { "Ref" : "NotificationTopic" },
-          "NotificationTypes" : [ "autoscaling:EC2_INSTANCE_LAUNCH",
-                                  "autoscaling:EC2_INSTANCE_LAUNCH_ERROR",
-                                  "autoscaling:EC2_INSTANCE_TERMINATE",
-                                  "autoscaling:EC2_INSTANCE_TERMINATE_ERROR"]
-        }
+        "LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ]
+        // FIXME: irgendwie kommt hier der output parameter aus dem base-stack.json nicht an!?
+        //        error message: Provided ELBs may not be valid. Please ensure they exist and try again.
       },
       "CreationPolicy" : {
         "ResourceSignal" : {
@@ -248,7 +246,6 @@
         }
       },
       "Properties" : {
-        "KeyName" : { "Ref" : "KeyName" },
         "ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" },
                                           { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "InstanceType" }, "Arch" ] } ] },
         "SecurityGroups" : [ { "Ref" : "InstanceSecurityGroup" } ],

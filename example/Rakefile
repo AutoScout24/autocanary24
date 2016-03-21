@@ -3,8 +3,6 @@ require "aws-sdk-core"
 require "autostacker24"
 require_relative "../lib/autocanary24/client"
 
-
-
 task :default do
 
   Stacker.create_or_update_stack('autocanary24-example', 'base-stack.json', {})

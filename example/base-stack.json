@@ -47,8 +47,13 @@
   },
 
   "Outputs" : {
-    "InstanceSecurityGroup": {
-      "Value": "@InstanceSecurityGroup"
+    "InstanceSecurityGroup" : {
+      "Description" : "The security group id of the instance",
+      "Value" : { "Fn::GetAtt" : [ "InstanceSecurityGroup", "GroupId" ]}
+    },
+    "ElasticLoadBalancer" : {
+      "Description" : "The name of the load balancer",
+      "Value" : { "Fn::GetAtt" : [ "ElasticLoadBalancer", "DNSName" ]}
     },
     "URL" : {
       "Description" : "The URL of the website",
