@@ -92,7 +92,8 @@ describe AutoCanary24::Client do
         allow(ac24).to receive(:get_autoscaling_group).with('mystack_G').and_return('ASG_G')
         allow(ac24).to receive(:get_autoscaling_group).with('mystack_B').and_return('ASG_B')
 
-        expect(ac24).to receive(:wait_for_instances).with('ASG_G', elb)
+        expect(ac24).to receive(:attach_asg_to_elb).ordered
+        expect(ac24).to receive(:wait_for_instances).with('ASG_G', elb).ordered
 
         ac24.switch(stacks, elb)
       end
@@ -100,9 +101,9 @@ describe AutoCanary24::Client do
       it 'should detach the ASG from Blue stack from the ELB' do
         allow(ac24).to receive(:get_autoscaling_group).with('mystack_G').and_return('ASG_G')
         allow(ac24).to receive(:get_autoscaling_group).with('mystack_B').and_return('ASG_B')
-        allow(ac24).to receive(:wait_for_instances)
 
-        expect(ac24).to receive(:detach_asg_from_elb).with('ASG_B', elb)
+        expect(ac24).to receive(:wait_for_instances).ordered
+        expect(ac24).to receive(:detach_asg_from_elb).with('ASG_B', elb).ordered
 
         ac24.switch(stacks, elb)
       end

@@ -55,10 +55,10 @@ module AutoCanary24
         stacks = get_stacks_to_create_and_to_delete_for(stack_name, elb)
 
         # before_switch
-        before_switch(stacks, elb)
+        before_switch(stacks, template, parameters, parent_stack_name, tags)
 
         # Blue/Green (switch)
-        switch()
+        switch(stacks, elb)
 
         # After switch
         after_switch(stacks[:stack_name_to_delete], @configuration.keep_inactive_stack)
