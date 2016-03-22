@@ -1,6 +1,7 @@
 require 'aws-sdk-core'
 require 'autostacker24'
 require 'base64'
+
 require_relative 'configuration'
 require_relative 'canarystack'
 
@@ -67,33 +68,32 @@ module AutoCanary24
 
     def switch(stacks, elb)
 
-      stacks[:stack_to_create].attach_to_elb_and_wait(elb)
-      stacks[:stack_to_delete].detach_from_elb_and_wait(elb)
+      desired = stacks[:stack_to_delete].get_desired_capacity()
+      instances_to_create_per_step = (desired / 100.0 * @configuration.scaling_instance_percent).round
+      instances_to_create_per_step = 1 if (instances_to_create_per_step < 1)
 
-      # TODO consider @configuration.scaling_instance_percent
-      # instances_to_create_per_step = desired
       # instances_to_delete_per_step = desired if @configuration.keep_instances_balanced
+      created_instances = 0
+      while (created_instances < desired)
 
-      # created_instances = 0
-      # while created_instances < desired
-      #
-      #   # Add n new instances, wait until they are
-      #   # Wait until instances are healthy
-      #   # Attach them to elb
-      #   attach_instances(stack_to_create, instances_to_create_per_step, elb)
-      #
+        puts "Adding #{instances_to_create_per_step} instances (#{created_instances+instances_to_create_per_step}/#{desired})"
+
+        stacks[:stack_to_create].attach_to_elb_and_wait(elb, instances_to_create_per_step)
+
       #   if instances_to_delete_per_step > 0
       #     # Detach n instances from elb
       #     detach_instances(stack_to_delete, instances_to_delete_per_step, elb)
       #   end
-      #
-      #   created_instances += instances_to_create_per_step
-      #
-      #   missing = desired - created_instances
-      #   if missing < instances_to_create
-      #     instances_to_create = missing
-      #   end
-      # end
+
+        created_instances += instances_to_create_per_step
+
+        missing = desired - instances_to_create_per_step
+        if missing < instances_to_create_per_step
+          instances_to_create_per_step = missing
+        end
+      end
+
+      stacks[:stack_to_delete].detach_from_elb_and_wait(elb)
     end
 
     def after_switch(stack_to_delete, keep_inactive_stack)

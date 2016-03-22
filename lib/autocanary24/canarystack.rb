@@ -52,7 +52,7 @@ module AutoCanary24
       # TODO Wait
     end
 
-    def attach_to_elb_and_wait(elb)
+    def attach_to_elb_and_wait(elb, number_of_instances)
       puts "attach_load_balancers"
       asg = get_autoscaling_group
       asg_client = Aws::AutoScaling::Client.new
@@ -64,7 +64,7 @@ module AutoCanary24
 
 
 
-    # private
+    private
     def wait_for_instances_on_elb(asg, elb)
       puts "wait_for_instances_on_elb"
 
@@ -85,7 +85,6 @@ module AutoCanary24
 
       puts "All new instances are healthy now"
     end
-
 
     def wait_for_instances_in_asg(asg, expected_number_of_instances)
       puts "Check #{asg} to have #{expected_number_of_instances} instances running"
@@ -120,6 +119,5 @@ module AutoCanary24
       resource_ids = resp.select{|x| x[:resource_type] == resource_type }.map { |e| e.physical_resource_id }
       resource_ids[0]
     end
-
   end
 end

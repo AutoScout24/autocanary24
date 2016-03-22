@@ -77,14 +77,18 @@ describe AutoCanary24::Client do
       let(:stacks) { {:stack_to_create => green_cs, :stack_to_delete => blue_cs} }
 
       it 'should attach the ASG from Green stack to the ELB' do
+        allow(blue_cs).to receive(:get_desired_capacity).and_return(1)
         allow(blue_cs).to receive(:detach_from_elb_and_wait).with(elb)
-        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb)
+
+        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 1)
 
         ac24.switch(stacks, elb)
       end
 
       it 'should detach the ASG from Blue stack from the ELB' do
-        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb).ordered
+        allow(blue_cs).to receive(:get_desired_capacity).and_return(1)
+
+        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 1).ordered
         expect(blue_cs).to receive(:detach_from_elb_and_wait).with(elb).ordered
 
         ac24.switch(stacks, elb)
@@ -93,31 +97,47 @@ describe AutoCanary24::Client do
   end
 
 
-  # context 'Canary deployment' do
-  #   describe 'when desired count of active stack is 5 and scaling_instance_percent is 10' do
-  #     it 'should add exactly 1 instances at a time' do
-  #       pending
-  #     end
-  #   end
-  #
-  #   describe 'when desired count of active stack is 5 and scaling_instance_percent is 50' do
-  #     it 'should add 3 instances the first time' do
-  #       pending
-  #     end
-  #     it 'should add 2 instances the second time' do
-  #       pending
-  #     end
-  #   end
-  #
-  #   describe 'when desired count of active stack is 5 and scaling_instance_percent is 80' do
-  #     it 'should add 4 instances the first time' do
-  #       pending
-  #     end
-  #     it 'should add 1 instances the second time' do
-  #       pending
-  #     end
-  #   end
-  #
+  context 'Canary deployment' do
+    let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 10}) }
+    let(:stacks) { {:stack_to_create => green_cs, :stack_to_delete => blue_cs} }
+
+    describe 'when desired count of active stack is 5 and scaling_instance_percent is 10' do
+      it 'should add exactly 1 instances at a time' do
+        allow(blue_cs).to receive(:detach_from_elb_and_wait)
+        allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
+
+        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 1).exactly(5).times
+
+        ac24.switch(stacks, elb)
+      end
+    end
+
+    describe 'when desired count of active stack is 5 and scaling_instance_percent is 50' do
+      let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 50}) }
+      it 'should add 3 instances the first time and 2 instances the second time' do
+        allow(blue_cs).to receive(:detach_from_elb_and_wait)
+        allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
+
+        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 3).exactly(1).times.ordered
+        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 2).exactly(1).times.ordered
+
+        ac24.switch(stacks, elb)
+      end
+    end
+
+    describe 'when desired count of active stack is 5 and scaling_instance_percent is 80' do
+      let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 80}) }
+      it 'should add 4 instances the first time and 1 instance the second time' do
+        allow(blue_cs).to receive(:detach_from_elb_and_wait)
+        allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
+
+        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 4).exactly(1).times.ordered
+        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 1).exactly(1).times.ordered
+
+        ac24.switch(stacks, elb)
+      end
+    end
+
   #   describe 'when keep_instances_balanced is true' do
   #     it 'should remove x instance(s) from current stack after x new instance(s) were added to the new stack' do
   #       pending
@@ -132,9 +152,8 @@ describe AutoCanary24::Client do
   #       pending
   #     end
   #   end
-  #
-  # end
-  #
+  end
+
   context 'After switch' do
     describe 'when configuration of keep_inactive_stack is TRUE' do
       it 'should keep the inactive stack' do
