@@ -85,7 +85,7 @@ describe AutoCanary24::Client do
         ac24.switch(stacks, elb)
       end
 
-      it 'should detach the ASG from Blue stack from the ELB' do
+      it 'should detach the ASG from Blue stack from the ELB after successfully attaching the Green stack ASG' do
         allow(blue_cs).to receive(:get_desired_capacity).and_return(1)
 
         expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 1).ordered
@@ -98,10 +98,22 @@ describe AutoCanary24::Client do
 
 
   context 'Canary deployment' do
-    let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 10}) }
     let(:stacks) { {:stack_to_create => green_cs, :stack_to_delete => blue_cs} }
 
+    describe 'when desired count of active stack is 5 and scaling_instance_percent is 1' do
+      let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 1}) }
+      it 'should add exactly 1 instances at a time' do
+        allow(blue_cs).to receive(:detach_from_elb_and_wait)
+        allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
+
+        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 1).exactly(5).times
+
+        ac24.switch(stacks, elb)
+      end
+    end
+
     describe 'when desired count of active stack is 5 and scaling_instance_percent is 10' do
+      let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 10}) }
       it 'should add exactly 1 instances at a time' do
         allow(blue_cs).to receive(:detach_from_elb_and_wait)
         allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
@@ -133,6 +145,18 @@ describe AutoCanary24::Client do
 
         expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 4).exactly(1).times.ordered
         expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 1).exactly(1).times.ordered
+
+        ac24.switch(stacks, elb)
+      end
+    end
+
+    describe 'when desired count of active stack is 5 and scaling_instance_percent is 100' do
+      let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 100}) }
+      it 'should add 5 instances the first time' do
+        allow(blue_cs).to receive(:detach_from_elb_and_wait)
+        allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
+
+        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 5).exactly(1).times
 
         ac24.switch(stacks, elb)
       end
