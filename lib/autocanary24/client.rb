@@ -9,7 +9,7 @@ module AutoCanary24
 
   class Client
     def initialize(**params)
-      @configuration = AutoCanary24::Configuration.new(params) #params.fetch(:configuration, Configuration::new(params))
+      @configuration = Configuration.new(params) #params.fetch(:configuration, Configuration::new(params))
     end
 
     def deploy_stack(parent_stack_name, template, parameters, tags = nil)
@@ -52,10 +52,11 @@ module AutoCanary24
         stack_to_create = green_cs
       else
         puts "No stack is attached to ELB #{elb}, blue will be created."
+        stack_to_delete = nil
         stack_to_create = blue_cs
       end
 
-      return {stack_to_create: stack_to_create, stack_to_delete: stack_to_delete}
+      {stack_to_create: stack_to_create, stack_to_delete: stack_to_delete}
     end
 
     def before_switch(stacks, template, parameters, parent_stack_name, tags)
@@ -73,10 +74,11 @@ module AutoCanary24
       instances_to_create_per_step = 1 if (instances_to_create_per_step < 1)
 
       # instances_to_delete_per_step = desired if @configuration.keep_instances_balanced
-      created_instances = 0
-      while (created_instances < desired)
 
-        puts "Adding #{instances_to_create_per_step} instances (#{created_instances+instances_to_create_per_step}/#{desired})"
+      missing = desired
+      while (missing > 0)
+
+        puts "Adding #{instances_to_create_per_step} instances (#{desired-missing+instances_to_create_per_step}/#{desired})"
 
         stacks[:stack_to_create].attach_to_elb_and_wait(elb, instances_to_create_per_step)
 
@@ -85,9 +87,7 @@ module AutoCanary24
       #     detach_instances(stack_to_delete, instances_to_delete_per_step, elb)
       #   end
 
-        created_instances += instances_to_create_per_step
-
-        missing = desired - instances_to_create_per_step
+        missing -= instances_to_create_per_step
         if missing < instances_to_create_per_step
           instances_to_create_per_step = missing
         end
