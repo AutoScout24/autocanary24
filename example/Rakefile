@@ -1,13 +1,25 @@
-require "pp"
 require "aws-sdk-core"
 require "autostacker24"
 require_relative "../lib/autocanary24/client"
 
 task :default do
 
-  Stacker.create_or_update_stack('autocanary24-example', 'base-stack.json', {})
+  # 1) Create the base stack which includes at least the ELB
+  parameters = {}
+  Stacker.create_or_update_stack('autocanary24-example', 'base-stack.json', parameters)
 
-  client = AutoCanary24::Client.new
-  client.deploy_stack('autocanary24-example', 'asg-stack.json', {}, 'autocanary24-example')
+  # 2) Create the stack which includes the ASG
+  client = AutoCanary24::Client.new({
+    :keep_inactive_stack => true
+  })
 
+  parameters = {}
+  client.deploy_stack('autocanary24-example', 'asg-stack.json', parameters)
+
+end
+
+task :cleanup do
+  Stacker.delete_stack('autocanary24-example-B')
+  Stacker.delete_stack('autocanary24-example-G')
+  Stacker.delete_stack('autocanary24-example')
 end

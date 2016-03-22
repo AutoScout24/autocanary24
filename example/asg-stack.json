@@ -8,9 +8,6 @@
     "InstanceSecurityGroup": {
       "Type": "String"
     },
-    "ElasticLoadBalancer": {
-      "Type": "String"
-    },
     "InstanceType" : {
       "Description" : "WebServer EC2 instance type",
       "Type" : "String",
@@ -167,9 +164,8 @@
         "LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
         "MinSize" : "1",
         "MaxSize" : "3",
-        "LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ]
-        // FIXME: irgendwie kommt hier der output parameter aus dem base-stack.json nicht an!?
-        //        error message: Provided ELBs may not be valid. Please ensure they exist and try again.
+        "HealthCheckGracePeriod" : "600",
+        "HealthCheckType" : "ELB"
       },
       "CreationPolicy" : {
         "ResourceSignal" : {

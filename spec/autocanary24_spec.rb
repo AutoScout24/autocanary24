@@ -3,59 +3,57 @@ require 'spec_helper'
 describe AutoCanary24::Client do
   let(:ac24) { AutoCanary24::Client.new }
   let(:elb) { "ELB-123" }
+  let(:blue_cs) { AutoCanary24::CanaryStack.new('mystack-B') }
+  let(:green_cs) { AutoCanary24::CanaryStack.new('mystack-G') }
 
   context 'Before switch' do
     let(:loadbalancer) { [ Aws::AutoScaling::Types::LoadBalancerState.new(load_balancer_name: elb) ] }
 
     describe 'when blue is currently active' do
-      before do
-        allow(ac24).to receive(:find_stack).with('mystack-B').and_return(true)
-        allow(ac24).to receive(:find_stack).with('mystack-G').and_return(false)
 
-        allow(ac24).to receive(:get_autoscaling_group).and_return('asg')
-        allow(ac24).to receive(:get_attached_loadbalancers).and_return(loadbalancer)
+      before do
+        allow(blue_cs).to receive(:is_attached_to).with(elb).and_return(true)
+        allow(green_cs).to receive(:is_attached_to).with(elb).and_return(false)
       end
 
       it 'should activate the green stack' do
-        expect(ac24.get_stacks_to_create_and_to_delete_for('mystack', elb)).to eq({stack_name_to_delete: 'mystack-B', stack_name_to_create: 'mystack-G'})
+        expect(ac24.get_stacks_to_create_and_to_delete_for(blue_cs, green_cs, elb)).to eq({stack_to_delete: blue_cs, stack_to_create: green_cs})
       end
     end
 
     describe 'when green is currently active' do
       before do
-        allow(ac24).to receive(:find_stack).with('mystack-B').and_return(false)
-        allow(ac24).to receive(:find_stack).with('mystack-G').and_return(true)
-
-        allow(ac24).to receive(:get_autoscaling_group).and_return('asg')
-        allow(ac24).to receive(:get_attached_loadbalancers).and_return(loadbalancer)
+        allow(blue_cs).to receive(:is_attached_to).with(elb).and_return(false)
+        allow(green_cs).to receive(:is_attached_to).with(elb).and_return(true)
       end
 
       it 'should activate the blue stack' do
-        expect(ac24.get_stacks_to_create_and_to_delete_for('mystack', elb)).to eq({stack_name_to_delete: 'mystack-G', stack_name_to_create: 'mystack-B'})
+        expect(ac24.get_stacks_to_create_and_to_delete_for(blue_cs, green_cs, elb)).to eq({stack_to_delete: green_cs, stack_to_create: blue_cs})
       end
     end
 
     describe 'when no stack is active' do
       before do
-        allow(ac24).to receive(:find_stack).with('mystack-B').and_return(false)
-        allow(ac24).to receive(:find_stack).with('mystack-G').and_return(false)
+        allow(blue_cs).to receive(:is_attached_to).with(elb).and_return(false)
+        allow(green_cs).to receive(:is_attached_to).with(elb).and_return(false)
       end
 
       it 'should activate the blue stack' do
-        expect(ac24.get_stacks_to_create_and_to_delete_for('mystack', elb)).to eq({stack_name_to_delete: nil, stack_name_to_create: 'mystack-B'})
+        expect(ac24.get_stacks_to_create_and_to_delete_for(blue_cs, green_cs, elb)).to eq({stack_to_delete: nil, stack_to_create: blue_cs})
       end
     end
 
     describe 'when desired count of active stack is 5' do
-      let(:stacks) { {:stack_name_to_create => 'mystack-B', :stack_name_to_delete => 'mystack-G'} }
+      let(:stacks) { {:stack_to_create => blue_cs, :stack_to_delete => green_cs} }
       let(:template) { 'template' }
       let(:parameters) { {:para1=>"value"} }
       let(:parent_stack_name) { 'mystack' }
       let(:tags) { [{"Key"=>"MyKey", "Value"=>"MyValue"}] }
 
       it 'should create the new stack' do
-        allow(ac24).to receive(:create_stack)
-        allow(ac24).to receive(:get_desired_count).with('mystack-G').and_return(5)
+        allow(blue_cs).to receive(:set_desired_capacity_and_wait)
+        allow(green_cs).to receive(:get_desired_capacity).and_return(5)
+
         expect(ac24).to receive(:create_stack).with('mystack-B', template, parameters, parent_stack_name, tags)
 
         ac24.before_switch(stacks, template, parameters, parent_stack_name, tags)
@@ -64,8 +62,8 @@ describe AutoCanary24::Client do
       it 'should be 5 instances after creation' do
 
         allow(ac24).to receive(:create_stack)
-        allow(ac24).to receive(:get_desired_count).with('mystack-G').and_return(5)
-        expect(ac24).to receive(:set_desired_count).with('mystack-B', 5)
+        allow(green_cs).to receive(:get_desired_capacity).and_return(5)
+        expect(blue_cs).to receive(:set_desired_capacity_and_wait).with(5)
 
         ac24.before_switch(stacks, nil, nil, nil, nil)
       end
@@ -76,34 +74,18 @@ describe AutoCanary24::Client do
   context 'Switch (Blue/Green)' do
 
     describe 'when switching from Blue to Green stack' do
-      let(:stacks) { {:stack_name_to_create => 'mystack-G', :stack_name_to_delete => 'mystack-B'} }
+      let(:stacks) { {:stack_to_create => green_cs, :stack_to_delete => blue_cs} }
 
       it 'should attach the ASG from Green stack to the ELB' do
-        allow(ac24).to receive(:get_autoscaling_group).with('mystack-G').and_return('ASG_G')
-        allow(ac24).to receive(:get_autoscaling_group).with('mystack-B').and_return('ASG_B')
-        allow(ac24).to receive(:wait_for_instances)
-
-        expect(ac24).to receive(:attach_asg_to_elb).with('ASG_G', elb)
-
-        ac24.switch(stacks, elb)
-      end
-
-      it 'should wait until all instances from Green ASG are marked as healthy in ELB' do
-        allow(ac24).to receive(:get_autoscaling_group).with('mystack-G').and_return('ASG_G')
-        allow(ac24).to receive(:get_autoscaling_group).with('mystack-B').and_return('ASG_B')
-
-        expect(ac24).to receive(:attach_asg_to_elb).ordered
-        expect(ac24).to receive(:wait_for_instances).with('ASG_G', elb).ordered
+        allow(blue_cs).to receive(:detach_from_elb_and_wait).with(elb)
+        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb)
 
         ac24.switch(stacks, elb)
       end
 
       it 'should detach the ASG from Blue stack from the ELB' do
-        allow(ac24).to receive(:get_autoscaling_group).with('mystack-G').and_return('ASG_G')
-        allow(ac24).to receive(:get_autoscaling_group).with('mystack-B').and_return('ASG_B')
-
-        expect(ac24).to receive(:wait_for_instances).ordered
-        expect(ac24).to receive(:detach_asg_from_elb).with('ASG_B', elb).ordered
+        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb).ordered
+        expect(blue_cs).to receive(:detach_from_elb_and_wait).with(elb).ordered
 
         ac24.switch(stacks, elb)
       end
@@ -136,11 +118,6 @@ describe AutoCanary24::Client do
   #     end
   #   end
   #
-  #   describe 'when new instances are added and scaling_wait_interval is set to 5 sec' do
-  #     it 'should wait 5sec after the instances were added' do
-  #       pending
-  #     end
-  #   end
   #   describe 'when keep_instances_balanced is true' do
   #     it 'should remove x instance(s) from current stack after x new instance(s) were added to the new stack' do
   #       pending
@@ -159,12 +136,6 @@ describe AutoCanary24::Client do
   # end
   #
   context 'After switch' do
-  #   describe 'when the deployment is done' do
-  #     it 'should not send traffic to the inactive stack' do
-  #       pending
-  #     end
-  #   end
-  #
     describe 'when configuration of keep_inactive_stack is TRUE' do
       it 'should keep the inactive stack' do
         expect(ac24).to receive(:delete_stack).with('mystack').exactly(0).times
@@ -194,7 +165,7 @@ describe AutoCanary24::Client do
   # Both stacks are somehow active
 end
 
-
+  # Switch when only one stack is available
 
   #     it 'should always be 5 or more instances (overall) during deployment' do
   #       pending
