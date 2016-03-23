@@ -72,19 +72,22 @@ module AutoCanary24
 
     def switch(stacks, elb)
 
-      desired = stacks[:stack_to_delete].get_desired_capacity()
+      desired = stacks[:stack_to_delete].get_desired_capacity
       instances_to_toggle = (desired / 100.0 * @configuration.scaling_instance_percent).round
       instances_to_toggle = 1 if (instances_to_toggle < 1)
+
+      instances_to_create = stacks[:stack_to_create].get_instance_ids
+      instances_to_delete = stacks[:stack_to_delete].get_instance_ids
 
       missing = desired
       while (missing > 0)
 
         puts "Adding #{instances_to_toggle} instances (#{desired-missing+instances_to_toggle}/#{desired})"
 
-        stacks[:stack_to_create].attach_instances_to_elb_and_wait(elb, instances_to_toggle)
+        stacks[:stack_to_create].attach_instances_to_elb_and_wait(elb, instances_to_create[desired-missing, instances_to_toggle])
 
         if @configuration.keep_instances_balanced
-          stacks[:stack_to_delete].detach_instances_from_elb_and_wait(elb, instances_to_toggle)
+          stacks[:stack_to_delete].detach_instances_from_elb_and_wait(elb, instances_to_delete[desired-missing, instances_to_toggle])
         end
 
         missing -= instances_to_toggle

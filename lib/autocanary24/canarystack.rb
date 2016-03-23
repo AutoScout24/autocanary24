@@ -43,10 +43,14 @@ module AutoCanary24
       (elbs.any? { |e| e.load_balancer_name == elb })
     end
 
-    def attach_instances_to_elb_and_wait(elb, count)
+    def attach_instances_to_elb_and_wait(elb, instances)
+      elb_client = Aws::ElasticLoadBalancing::Client.new
+      elb_client.register_instances_with_load_balancer({ load_balancer_name: elb, instances: instances })
     end
 
-    def detach_instances_from_elb_and_wait(elb, count)
+    def detach_instances_from_elb_and_wait(elb, instances)
+      elb_client = Aws::ElasticLoadBalancing::Client.new
+      elb_client.deregister_instances_from_load_balancer({ load_balancer_name: elb, instances: instances })
     end
 
     def detach_asg_from_elb(elb)
@@ -72,6 +76,13 @@ module AutoCanary24
     end
 
     def resume_asg_processes
+    end
+
+    def get_instance_ids
+      asg = get_autoscaling_group
+      asg_client = Aws::AutoScaling::Client.new
+      asg_client.describe_auto_scaling_groups({auto_scaling_group_names: [asg]})[:auto_scaling_groups][0][:instances].
+          map{ |i| { instance_id: i[:instance_id] } }
     end
 
 
