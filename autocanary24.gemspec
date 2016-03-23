@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["pgarbe@autoscout24.com"]
 
   spec.summary       = %q{A very narrow interface to AWS ECR}
-  spec.description   = %q{autocanary24 provides a small convenient module for blue/green deployments with CloudFormation.}
+  spec.description   = %q{autocanary24 provides a small convenient module for blue/green and canary deployments with CloudFormation.}
   spec.homepage      = "https://github.com/autoscout24/autocanary24"
   spec.license       = "MIT"
 

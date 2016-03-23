@@ -17,7 +17,7 @@ module AutoCanary24
 
       @keep_instances_balanced = false
       unless params[:keep_instances_balanced].nil?
-        raise 'ERR: keep_instances_balanced needs to a boolean' unless params[:keep_instances_balanced].is_a?(Bool)
+        raise 'ERR: keep_instances_balanced needs to a boolean' unless [true, false].include? params[:keep_instances_balanced]
         @keep_instances_balanced = params[:keep_instances_balanced]
       end
 

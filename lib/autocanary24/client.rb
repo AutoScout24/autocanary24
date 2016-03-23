@@ -32,7 +32,7 @@ module AutoCanary24
         switch(stacks, elb)
 
         puts 'After switch'
-        after_switch(stacks[:stack_to_delete], @configuration.keep_inactive_stack)
+        after_switch(stacks, @configuration.keep_inactive_stack)
 
       rescue Exception => e
         puts e
@@ -65,40 +65,44 @@ module AutoCanary24
 
       desired = stacks[:stack_to_delete].get_desired_capacity
       stacks[:stack_to_create].set_desired_capacity_and_wait(desired)
+
+      stacks[:stack_to_create].suspend_asg_processes
+      stacks[:stack_to_delete].suspend_asg_processes
     end
 
     def switch(stacks, elb)
 
       desired = stacks[:stack_to_delete].get_desired_capacity()
-      instances_to_create_per_step = (desired / 100.0 * @configuration.scaling_instance_percent).round
-      instances_to_create_per_step = 1 if (instances_to_create_per_step < 1)
-
-      # instances_to_delete_per_step = desired if @configuration.keep_instances_balanced
+      instances_to_toggle = (desired / 100.0 * @configuration.scaling_instance_percent).round
+      instances_to_toggle = 1 if (instances_to_toggle < 1)
 
       missing = desired
       while (missing > 0)
 
-        puts "Adding #{instances_to_create_per_step} instances (#{desired-missing+instances_to_create_per_step}/#{desired})"
+        puts "Adding #{instances_to_toggle} instances (#{desired-missing+instances_to_toggle}/#{desired})"
 
-        stacks[:stack_to_create].attach_to_elb_and_wait(elb, instances_to_create_per_step)
+        stacks[:stack_to_create].attach_instances_to_elb_and_wait(elb, instances_to_toggle)
 
-      #   if instances_to_delete_per_step > 0
-      #     # Detach n instances from elb
-      #     detach_instances(stack_to_delete, instances_to_delete_per_step, elb)
-      #   end
+        if @configuration.keep_instances_balanced
+          stacks[:stack_to_delete].detach_instances_from_elb_and_wait(elb, instances_to_toggle)
+        end
 
-        missing -= instances_to_create_per_step
-        if missing < instances_to_create_per_step
-          instances_to_create_per_step = missing
+        missing -= instances_to_toggle
+        if missing < instances_to_toggle
+          instances_to_toggle = missing
         end
       end
 
-      stacks[:stack_to_delete].detach_from_elb_and_wait(elb)
+      stacks[:stack_to_create].attach_asg_to_elb(elb)
+      stacks[:stack_to_delete].detach_asg_from_elb(elb)
     end
 
-    def after_switch(stack_to_delete, keep_inactive_stack)
+    def after_switch(stacks, keep_inactive_stack)
+      stacks[:stack_to_create].resume_asg_processes
+      stacks[:stack_to_delete].resume_asg_processes
+
       if keep_inactive_stack == false
-        delete_stack(stack_to_delete)
+        delete_stack(stacks[:stack_to_delete])
       end
     end
 

@@ -43,7 +43,13 @@ module AutoCanary24
       (elbs.any? { |e| e.load_balancer_name == elb })
     end
 
-    def detach_from_elb_and_wait(elb)
+    def attach_instances_to_elb_and_wait(elb, count)
+    end
+
+    def detach_instances_from_elb_and_wait(elb, count)
+    end
+
+    def detach_asg_from_elb(elb)
       puts "detach_load_balancers"
       asg = get_autoscaling_group
       asg_client = Aws::AutoScaling::Client.new
@@ -52,7 +58,7 @@ module AutoCanary24
       # TODO Wait
     end
 
-    def attach_to_elb_and_wait(elb, number_of_instances)
+    def attach_asg_to_elb(elb)
       puts "attach_load_balancers"
       asg = get_autoscaling_group
       asg_client = Aws::AutoScaling::Client.new
@@ -62,6 +68,11 @@ module AutoCanary24
       wait_for_instances_on_elb(asg, elb)
     end
 
+    def suspend_asg_processes
+    end
+
+    def resume_asg_processes
+    end
 
 
     private

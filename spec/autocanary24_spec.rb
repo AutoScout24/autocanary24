@@ -52,6 +52,8 @@ describe AutoCanary24::Client do
 
       it 'should create the new stack' do
         allow(blue_cs).to receive(:set_desired_capacity_and_wait)
+        allow(blue_cs).to receive(:suspend_asg_processes)
+        allow(green_cs).to receive(:suspend_asg_processes)
         allow(green_cs).to receive(:get_desired_capacity).and_return(5)
 
         expect(ac24).to receive(:create_stack).with('mystack-B', template, parameters, parent_stack_name, tags)
@@ -76,20 +78,22 @@ describe AutoCanary24::Client do
     describe 'when switching from Blue to Green stack' do
       let(:stacks) { {:stack_to_create => green_cs, :stack_to_delete => blue_cs} }
 
-      it 'should attach the ASG from Green stack to the ELB' do
-        allow(blue_cs).to receive(:get_desired_capacity).and_return(1)
-        allow(blue_cs).to receive(:detach_from_elb_and_wait).with(elb)
+      it 'should attach all instances from Green stack to the ELB' do
+        allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
+        allow(blue_cs).to receive(:detach_asg_from_elb).with(elb)
+        allow(green_cs).to receive(:attach_asg_to_elb).with(elb)
 
-        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 1)
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, 5)
 
         ac24.switch(stacks, elb)
       end
 
-      it 'should detach the ASG from Blue stack from the ELB after successfully attaching the Green stack ASG' do
-        allow(blue_cs).to receive(:get_desired_capacity).and_return(1)
+      it 'should detach all instances from Blue stack from the ELB after successfully attaching the Green stack ASG' do
+        allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
+        allow(green_cs).to receive(:attach_asg_to_elb).with(elb)
 
-        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 1).ordered
-        expect(blue_cs).to receive(:detach_from_elb_and_wait).with(elb).ordered
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, 5).ordered
+        expect(blue_cs).to receive(:detach_asg_from_elb).with(elb).ordered
 
         ac24.switch(stacks, elb)
       end
@@ -103,10 +107,11 @@ describe AutoCanary24::Client do
     describe 'when desired count of active stack is 5 and scaling_instance_percent is 1' do
       let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 1}) }
       it 'should add exactly 1 instances at a time' do
-        allow(blue_cs).to receive(:detach_from_elb_and_wait)
+        allow(green_cs).to receive(:attach_asg_to_elb)
+        allow(blue_cs).to receive(:detach_asg_from_elb)
         allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
 
-        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 1).exactly(5).times
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, 1).exactly(5).times
 
         ac24.switch(stacks, elb)
       end
@@ -115,10 +120,11 @@ describe AutoCanary24::Client do
     describe 'when desired count of active stack is 5 and scaling_instance_percent is 10' do
       let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 10}) }
       it 'should add exactly 1 instances at a time' do
-        allow(blue_cs).to receive(:detach_from_elb_and_wait)
+        allow(green_cs).to receive(:attach_asg_to_elb)
+        allow(blue_cs).to receive(:detach_asg_from_elb)
         allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
 
-        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 1).exactly(5).times
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, 1).exactly(5).times
 
         ac24.switch(stacks, elb)
       end
@@ -127,11 +133,12 @@ describe AutoCanary24::Client do
     describe 'when desired count of active stack is 5 and scaling_instance_percent is 50' do
       let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 50}) }
       it 'should add 3 instances the first time and 2 instances the second time' do
-        allow(blue_cs).to receive(:detach_from_elb_and_wait)
+        allow(green_cs).to receive(:attach_asg_to_elb)
+        allow(blue_cs).to receive(:detach_asg_from_elb)
         allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
 
-        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 3).exactly(1).times.ordered
-        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 2).exactly(1).times.ordered
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, 3).exactly(1).times.ordered
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, 2).exactly(1).times.ordered
 
         ac24.switch(stacks, elb)
       end
@@ -140,11 +147,12 @@ describe AutoCanary24::Client do
     describe 'when desired count of active stack is 5 and scaling_instance_percent is 80' do
       let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 80}) }
       it 'should add 4 instances the first time and 1 instance the second time' do
-        allow(blue_cs).to receive(:detach_from_elb_and_wait)
+        allow(green_cs).to receive(:attach_asg_to_elb)
+        allow(blue_cs).to receive(:detach_asg_from_elb)
         allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
 
-        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 4).exactly(1).times.ordered
-        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 1).exactly(1).times.ordered
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, 4).exactly(1).times.ordered
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, 1).exactly(1).times.ordered
 
         ac24.switch(stacks, elb)
       end
@@ -153,21 +161,33 @@ describe AutoCanary24::Client do
     describe 'when desired count of active stack is 5 and scaling_instance_percent is 100' do
       let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 100}) }
       it 'should add 5 instances the first time' do
-        allow(blue_cs).to receive(:detach_from_elb_and_wait)
+        allow(green_cs).to receive(:attach_asg_to_elb)
+        allow(blue_cs).to receive(:detach_asg_from_elb)
         allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
 
-        expect(green_cs).to receive(:attach_to_elb_and_wait).with(elb, 5).exactly(1).times
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, 5).exactly(1).times
 
         ac24.switch(stacks, elb)
       end
     end
 
-  #   describe 'when keep_instances_balanced is true' do
-  #     it 'should remove x instance(s) from current stack after x new instance(s) were added to the new stack' do
-  #       pending
-  #     end
-  #   end
-  #
+    describe 'when keep_instances_balanced is true' do
+      let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 50, keep_instances_balanced: true }) }
+
+      it 'should remove x instance(s) from current stack after x new instance(s) were added to the new stack' do
+        allow(green_cs).to receive(:attach_asg_to_elb)
+        allow(blue_cs).to receive(:detach_asg_from_elb)
+        allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
+
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, 3).exactly(1).times.ordered
+        expect(blue_cs).to receive(:detach_instances_from_elb_and_wait).with(elb, 3).exactly(1).times.ordered
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, 2).exactly(1).times.ordered
+        expect(blue_cs).to receive(:detach_instances_from_elb_and_wait).with(elb, 2).exactly(1).times.ordered
+
+        ac24.switch(stacks, elb)
+      end
+    end
+
   #   describe 'when keep_instances_balanced is false' do
   #     it 'should not remove instances from current stack after adding new instances to the new stack' do
   #       pending
@@ -179,17 +199,25 @@ describe AutoCanary24::Client do
   end
 
   context 'After switch' do
+    let(:stacks) { {:stack_to_create => green_cs, :stack_to_delete => blue_cs} }
+
     describe 'when configuration of keep_inactive_stack is TRUE' do
       it 'should keep the inactive stack' do
+        allow(blue_cs).to receive(:resume_asg_processes)
+        allow(green_cs).to receive(:resume_asg_processes)
+
         expect(ac24).to receive(:delete_stack).with('mystack').exactly(0).times
-        ac24.after_switch('mystack', true)
+        ac24.after_switch(stacks, true)
       end
     end
 
     describe 'when configuration of keep_inactive_stack is FALSE' do
       it 'should delete the inactive stack' do
-        expect(ac24).to receive(:delete_stack).with('mystack')
-        ac24.after_switch('mystack', false)
+        allow(blue_cs).to receive(:resume_asg_processes)
+        allow(green_cs).to receive(:resume_asg_processes)
+
+        expect(ac24).to receive(:delete_stack).with(stacks[:stack_to_delete])
+        ac24.after_switch(stacks, false)
       end
     end
   end
