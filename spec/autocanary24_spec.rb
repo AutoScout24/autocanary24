@@ -53,10 +53,10 @@ describe AutoCanary24::Client do
       let(:tags) { [{"Key"=>"MyKey", "Value"=>"MyValue"}] }
 
       it 'should create the new stack' do
+        allow(green_cs).to receive(:get_desired_capacity).and_return(5)
         allow(blue_cs).to receive(:set_desired_capacity_and_wait)
         allow(blue_cs).to receive(:suspend_asg_processes)
         allow(green_cs).to receive(:suspend_asg_processes)
-        allow(green_cs).to receive(:get_desired_capacity).and_return(5)
 
         expect(ac24).to receive(:create_stack).with('mystack-B', template, parameters, parent_stack_name, tags)
 
@@ -68,6 +68,8 @@ describe AutoCanary24::Client do
         allow(ac24).to receive(:create_stack)
         allow(green_cs).to receive(:get_desired_capacity).and_return(5)
         expect(blue_cs).to receive(:set_desired_capacity_and_wait).with(5)
+        allow(blue_cs).to receive(:suspend_asg_processes)
+        allow(green_cs).to receive(:suspend_asg_processes)
 
         ac24.before_switch(stacks, nil, nil, nil, nil)
       end
