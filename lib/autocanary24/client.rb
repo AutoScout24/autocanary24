@@ -12,7 +12,7 @@ module AutoCanary24
       @configuration = Configuration.new(params) #params.fetch(:configuration, Configuration::new(params))
     end
 
-    def deploy_stack(parent_stack_name, template, parameters, tags = nil, deployment_check = lambda { |servers| true })
+    def deploy_stack(parent_stack_name, template, parameters, tags = nil, deployment_check = lambda { |stacks, elb, instances_to_create| true })
       begin
         puts "AC24: starting to deploy #{parent_stack_name}"
         puts "Using the following configuration #{@configuration.scaling_instance_percent}"
@@ -39,7 +39,7 @@ module AutoCanary24
       end
     end
 
-    # private
+    private
     def get_stacks_to_create_and_to_delete_for(blue_cs, green_cs, elb)
 
       if green_cs.is_attached_to(elb)
@@ -73,7 +73,7 @@ module AutoCanary24
 
     end
 
-    def switch(stacks, elb, deployment_check = nil)
+    def switch(stacks, elb, deployment_check)
 
       desired = stacks[:stack_to_create].get_desired_capacity
 
@@ -84,7 +84,7 @@ module AutoCanary24
       instances_to_delete = stacks[:stack_to_delete].nil? ? [] : stacks[:stack_to_delete].get_instance_ids
 
       missing = desired
-      while (missing > 0)
+      while missing > 0
 
         puts "Adding #{instances_to_toggle} instances (#{desired-missing+instances_to_toggle}/#{desired})"
 
@@ -95,7 +95,7 @@ module AutoCanary24
           return true
         end
 
-        if !(deployment_check.call(stacks, elb, instances_to_create))
+        unless deployment_check.call(stacks, elb, instances_to_create)
           rollback(stacks, elb, instances_to_create, instances_to_delete)
           return true
         end
@@ -146,7 +146,7 @@ module AutoCanary24
       resource_ids[0]
     end
 
-    def create_stack(stack_name, template, parameters, parent_stack_name, tags = nil)
+    def create_stack(stack_name, template, parameters, parent_stack_name, tags)
       puts "create_stack"
       Stacker.create_or_update_stack(stack_name, template, parameters, parent_stack_name, tags)
     end
