@@ -12,16 +12,16 @@ module AutoCanary24
       @configuration = Configuration.new(params) #params.fetch(:configuration, Configuration::new(params))
     end
 
-    def deploy_stack(parent_stack_name, template, parameters, tags = nil)
+    def deploy_stack(parent_stack_name, template, parameters, tags = nil, deployment_check = lambda { |servers| true })
       begin
         puts "AC24: starting to deploy #{parent_stack_name}"
-        puts "Using the following configuration #{@configuration}"
+        puts "Using the following configuration #{@configuration.scaling_instance_percent}"
 
         elb = get_elb(parent_stack_name)
         raise "No ELB found in stack #{parent_stack_name}" if elb.nil?
 
-        blue_cs = CanaryStack.new("#{parent_stack_name}-B")
-        green_cs = CanaryStack.new("#{parent_stack_name}-G")
+        blue_cs = get_canary_stack("#{parent_stack_name}-B")
+        green_cs = get_canary_stack("#{parent_stack_name}-G")
 
         stacks = get_stacks_to_create_and_to_delete_for(blue_cs, green_cs, elb)
 
@@ -29,7 +29,7 @@ module AutoCanary24
         before_switch(stacks, template, parameters, parent_stack_name, tags)
 
         puts 'Switch'
-        switch(stacks, elb)
+        switch(stacks, elb, deployment_check)
 
         puts 'After switch'
         after_switch(stacks, @configuration.keep_inactive_stack)
@@ -72,7 +72,7 @@ module AutoCanary24
 
     end
 
-    def switch(stacks, elb)
+    def switch(stacks, elb, deployment_check = nil)
 
       desired = stacks[:stack_to_create].get_desired_capacity
       instances_to_toggle = (desired / 100.0 * @configuration.scaling_instance_percent).round
@@ -87,6 +87,8 @@ module AutoCanary24
         puts "Adding #{instances_to_toggle} instances (#{desired-missing+instances_to_toggle}/#{desired})"
 
         stacks[:stack_to_create].attach_instances_to_elb_and_wait(elb, instances_to_create[desired-missing, instances_to_toggle])
+
+        # unless is_ok.call(servers) rollback
 
         if @configuration.keep_instances_balanced && !stacks[:stack_to_delete].nil?
           stacks[:stack_to_delete].detach_instances_from_elb_and_wait(elb, instances_to_delete[desired-missing, instances_to_toggle])
@@ -134,6 +136,10 @@ module AutoCanary24
       Stacker.delete_stack(stack_name) unless stack_name.nil?
     end
 
+    private
+    def get_canary_stack(stack_name)
+      CanaryStack.new(stack_name)
+    end
   end
 
 end
