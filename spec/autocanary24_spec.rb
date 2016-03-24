@@ -3,8 +3,8 @@ require 'spec_helper'
 describe AutoCanary24::Client do
   let(:ac24) { AutoCanary24::Client.new }
   let(:elb) { "ELB-123" }
-  let(:blue_cs) { AutoCanary24::CanaryStack.new('mystack-B') }
-  let(:green_cs) { AutoCanary24::CanaryStack.new('mystack-G') }
+  let(:blue_cs) { AutoCanary24::CanaryStack.new('mystack-B', 300) }
+  let(:green_cs) { AutoCanary24::CanaryStack.new('mystack-G', 300) }
   let(:green_instances) { [ { instance_id: 'i-872a6e01'}, {instance_id: 'i-872a6e02'}, {instance_id: 'i-872a6e03'}, {instance_id: 'i-872a6e04'}, {instance_id: 'i-872a6e05'} ] }
   let(:blue_instances) { [ { instance_id: 'i-315b7e01'}, {instance_id: 'i-315b7e02'}, {instance_id: 'i-315b7e03'}, {instance_id: 'i-457b7e04'}, {instance_id: 'i-457b7e05'} ] }
   let(:stack_name) { 'mystack' }
@@ -288,7 +288,7 @@ describe AutoCanary24::Client do
       it 'should trigger a rollback' do
         allow(ac24).to receive(:after_switch)
         expect(ac24).to receive(:rollback)
-        expect(green_cs).not_to receive(:attach_asg_to_elb)
+        expect(green_cs).not_to receive(:attach_asg_to_elb_and_wait)
 
         ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
       end
@@ -310,14 +310,14 @@ describe AutoCanary24::Client do
 
       it 'should remove already added instances from Green stack from ELB' do
         allow(ac24).to receive(:after_switch)
-        expect(green_cs).to receive(:detach_instances_from_elb_and_wait).with(elb, green_instances)
+        expect(green_cs).to receive(:detach_instances_from_elb).with(elb, green_instances)
 
         ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
       end
 
       it 'should add already removed instances from Blue stack to the ELB' do
         allow(ac24).to receive(:after_switch)
-        allow(green_cs).to receive(:detach_instances_from_elb_and_wait).with(elb, green_instances)
+        allow(green_cs).to receive(:detach_instances_from_elb).with(elb, green_instances)
         expect(blue_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, blue_instances)
 
         ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
