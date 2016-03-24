@@ -10,8 +10,8 @@ module AutoCanary24
     end
 
     def get_desired_capacity
-      asg = get_autoscaling_group
       puts "Get desired capacity for stack"
+      asg = get_autoscaling_group
       asg_client = Aws::AutoScaling::Client.new
       resp = asg_client.describe_auto_scaling_groups({
         auto_scaling_group_names: [asg],
@@ -40,7 +40,7 @@ module AutoCanary24
       puts "is attached to #{elb}?"
       asg = get_autoscaling_group
       elbs = get_attached_loadbalancers(asg) unless asg.nil?
-      (elbs.any? { |e| e.load_balancer_name == elb })
+      (!elbs.nil? && elbs.any? { |e| e.load_balancer_name == elb })
     end
 
     def attach_instances_to_elb_and_wait(elb, instances)
@@ -148,10 +148,13 @@ module AutoCanary24
 
     def get_first_resource_id(resource_type)
       client = Aws::CloudFormation::Client.new
-      resp = client.list_stack_resources({ stack_name: @stack_name }).data.stack_resource_summaries
-
-      resource_ids = resp.select{|x| x[:resource_type] == resource_type }.map { |e| e.physical_resource_id }
-      resource_ids[0]
+      begin
+        response = client.list_stack_resources({ stack_name: @stack_name })
+      rescue Exception
+        return nil
+      end
+      resources = response.data.stack_resource_summaries.select{|x| x[:resource_type] == resource_type }
+      resources.map{ |e| e.physical_resource_id }[0]
     end
   end
 end

@@ -62,22 +62,24 @@ module AutoCanary24
     def before_switch(stacks, template, parameters, parent_stack_name, tags)
 
       create_stack(stacks[:stack_to_create].stack_name, template, parameters, parent_stack_name, tags)
-
-      desired = stacks[:stack_to_delete].get_desired_capacity
-      stacks[:stack_to_create].set_desired_capacity_and_wait(desired)
-
       stacks[:stack_to_create].suspend_asg_processes
-      stacks[:stack_to_delete].suspend_asg_processes
+
+      unless stacks[:stack_to_delete].nil?
+        desired = stacks[:stack_to_delete].get_desired_capacity
+        stacks[:stack_to_create].set_desired_capacity_and_wait(desired)
+        stacks[:stack_to_delete].suspend_asg_processes
+      end
+
     end
 
     def switch(stacks, elb)
 
-      desired = stacks[:stack_to_delete].get_desired_capacity
+      desired = stacks[:stack_to_create].get_desired_capacity
       instances_to_toggle = (desired / 100.0 * @configuration.scaling_instance_percent).round
       instances_to_toggle = 1 if (instances_to_toggle < 1)
 
       instances_to_create = stacks[:stack_to_create].get_instance_ids
-      instances_to_delete = stacks[:stack_to_delete].get_instance_ids
+      instances_to_delete = stacks[:stack_to_delete].nil? ? [] : stacks[:stack_to_delete].get_instance_ids
 
       missing = desired
       while (missing > 0)
@@ -86,7 +88,7 @@ module AutoCanary24
 
         stacks[:stack_to_create].attach_instances_to_elb_and_wait(elb, instances_to_create[desired-missing, instances_to_toggle])
 
-        if @configuration.keep_instances_balanced
+        if @configuration.keep_instances_balanced && !stacks[:stack_to_delete].nil?
           stacks[:stack_to_delete].detach_instances_from_elb_and_wait(elb, instances_to_delete[desired-missing, instances_to_toggle])
         end
 
@@ -97,12 +99,12 @@ module AutoCanary24
       end
 
       stacks[:stack_to_create].attach_asg_to_elb(elb)
-      stacks[:stack_to_delete].detach_asg_from_elb(elb)
+      stacks[:stack_to_delete].detach_asg_from_elb(elb) unless stacks[:stack_to_delete].nil?
     end
 
     def after_switch(stacks, keep_inactive_stack)
       stacks[:stack_to_create].resume_asg_processes
-      stacks[:stack_to_delete].resume_asg_processes
+      stacks[:stack_to_delete].resume_asg_processes unless stacks[:stack_to_delete].nil?
 
       if keep_inactive_stack == false
         delete_stack(stacks[:stack_to_delete])
@@ -129,7 +131,7 @@ module AutoCanary24
     end
 
     def delete_stack(stack_name)
-      Stacker.delete_stack(stack_name)
+      Stacker.delete_stack(stack_name) unless stack_name.nil?
     end
 
   end
