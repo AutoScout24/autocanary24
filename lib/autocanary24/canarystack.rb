@@ -13,12 +13,9 @@ module AutoCanary24
       puts "Get desired capacity for stack"
       asg = get_autoscaling_group
       asg_client = Aws::AutoScaling::Client.new
-      resp = asg_client.describe_auto_scaling_groups({
-        auto_scaling_group_names: [asg],
-        max_records: 1
-      })
-      puts "#{resp.data.auto_scaling_groups[0].desired_capacity}"
-      resp.data.auto_scaling_groups[0].desired_capacity
+      result = describe_asg(asg).desired_capacity
+      puts "#{result}"
+      result
     end
 
     def set_desired_capacity_and_wait(desired_capacity)
@@ -47,12 +44,14 @@ module AutoCanary24
       puts "attach #{instances.length} instances to #{elb}"
       elb_client = Aws::ElasticLoadBalancing::Client.new
       elb_client.register_instances_with_load_balancer({ load_balancer_name: elb, instances: instances })
+      wait_for_instances_on_elb(instances, elb)
     end
 
     def detach_instances_from_elb_and_wait(elb, instances)
       puts "detach #{instances.length} instances from #{elb}"
       elb_client = Aws::ElasticLoadBalancing::Client.new
       elb_client.deregister_instances_from_load_balancer({ load_balancer_name: elb, instances: instances })
+      # TODO wait
     end
 
     def detach_asg_from_elb(elb)
@@ -69,9 +68,7 @@ module AutoCanary24
       asg = get_autoscaling_group
       asg_client = Aws::AutoScaling::Client.new
       asg_client.attach_load_balancers({auto_scaling_group_name: asg, load_balancer_names: [elb]})
-      # TODO Check for success
-
-      wait_for_instances_on_elb(asg, elb)
+      wait_for_asg_on_elb(asg, elb)
     end
 
     def suspend_asg_processes
@@ -93,28 +90,46 @@ module AutoCanary24
     def get_instance_ids
       asg = get_autoscaling_group
       asg_client = Aws::AutoScaling::Client.new
-      asg_client.describe_auto_scaling_groups({auto_scaling_group_names: [asg]})[:auto_scaling_groups][0][:instances].
-          map{ |i| { instance_id: i[:instance_id] } }
+      describe_asg(asg)[:instances].map{ |i| { instance_id: i[:instance_id] } }
     end
 
 
     private
-    def wait_for_instances_on_elb(asg, elb)
-      puts "wait_for_instances_on_elb"
-
+    def describe_asg(asg)
       asg_client = Aws::AutoScaling::Client.new
-      instances = asg_client.describe_auto_scaling_groups({auto_scaling_group_names: [asg]})[:auto_scaling_groups][0][:instances].map{ |i| { instance_id: i[:instance_id] } }
+      asg_client.describe_auto_scaling_groups({auto_scaling_group_names: [asg], max_records: 1})[:auto_scaling_groups][0]
+    end
+
+    def wait_for_asg_on_elb(asg, elb)
+      puts "Waiting for the ASG is attached to the ELB"
+
+      auto_scaling_group = describe_asg(asg)
+
+      if auto_scaling_group[:load_balancer_names].select{|l| l == elb}.length == 0
+        # TODO: retry and rollback if failed?
+        puts "WARNING: ASG not on the ELB yet!"
+      else
+        puts "ASG is attached to the ELB"
+      end
+
+      instances = auto_scaling_group[:instances].map{ |i| { instance_id: i[:instance_id] } }
+      wait_for_instances_on_elb(instances, elb)
+    end
+
+    def wait_for_instances_on_elb(instances, elb)
       puts "Waiting for the following new instances to get healthy in ELB:"
-      instances.map{ |i| puts i[:instance_id] }
+      instances.each{ |i| puts i[:instance_id] }
       elb_client = Aws::ElasticLoadBalancing::Client.new
-      while true
+      timeout = 60 # TODO: move timeout value to configuration? timeout relativ to number of instances
+      while timeout > 0
         begin
           elb_instances = elb_client.describe_instance_health({load_balancer_name: elb, instances: instances})
           break if elb_instances[:instance_states].select{ |s| s.state != 'InService' }.length == 0
         rescue Aws::ElasticLoadBalancing::Errors::InvalidInstance
         end
         sleep 5
-        # TODO add retry limit and think about what to do then
+        timeout -= 1
+        # TODO think about what to do after timeout
       end
 
       puts "All new instances are healthy now"
@@ -123,14 +138,16 @@ module AutoCanary24
     def wait_for_instances_in_asg(asg, expected_number_of_instances)
       puts "Check #{asg} to have #{expected_number_of_instances} instances running"
       asg_client = Aws::AutoScaling::Client.new
-      while true
+      timeout = 60 # TODO: move timeout value to configuration? timeout relativ to number of instances
+      while timeout > 0
         instances = asg_client.describe_auto_scaling_groups({auto_scaling_group_names: [asg]})[:auto_scaling_groups][0].instances
         healthy_instances = instances.select{ |i| i[:health_status] == "Healthy" && i[:lifecycle_state]=="InService"}.length
         puts healthy_instances
         break if healthy_instances == expected_number_of_instances
 
         sleep 5
-        # TODO add retry limit and think about what to do then
+        timeout -= 1
+        # TODO think about what to do after timeout
       end
 
       puts "All new instances are healthy now"

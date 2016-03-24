@@ -62,13 +62,14 @@ module AutoCanary24
     def before_switch(stacks, template, parameters, parent_stack_name, tags)
 
       create_stack(stacks[:stack_to_create].stack_name, template, parameters, parent_stack_name, tags)
-      stacks[:stack_to_create].suspend_asg_processes
 
       unless stacks[:stack_to_delete].nil?
         desired = stacks[:stack_to_delete].get_desired_capacity
         stacks[:stack_to_create].set_desired_capacity_and_wait(desired)
         stacks[:stack_to_delete].suspend_asg_processes
       end
+
+      stacks[:stack_to_create].suspend_asg_processes
 
     end
 
