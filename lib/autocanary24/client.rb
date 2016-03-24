@@ -101,7 +101,7 @@ module AutoCanary24
         end
 
         if @configuration.keep_instances_balanced && !stacks[:stack_to_delete].nil?
-          stacks[:stack_to_delete].detach_instances_from_elb_and_wait(elb, instances_to_delete[desired-missing, instances_to_toggle])
+          stacks[:stack_to_delete].detach_instances_from_elb(elb, instances_to_delete[desired-missing, instances_to_toggle])
         end
 
         missing -= instances_to_toggle
@@ -110,8 +110,8 @@ module AutoCanary24
         end
       end
 
-      stacks[:stack_to_create].attach_asg_to_elb(elb)
-      stacks[:stack_to_delete].detach_asg_from_elb(elb) unless stacks[:stack_to_delete].nil?
+      stacks[:stack_to_create].attach_asg_to_elb_and_wait(elb)
+      stacks[:stack_to_delete].detach_asg_from_elb_and_wait(elb) unless stacks[:stack_to_delete].nil?
     end
 
     def rollback(stacks, elb, instances_to_create, instances_to_delete)
@@ -157,7 +157,7 @@ module AutoCanary24
 
     private
     def get_canary_stack(stack_name)
-      CanaryStack.new(stack_name)
+      CanaryStack.new(stack_name, @configuration.wait_timeout)
     end
   end
 

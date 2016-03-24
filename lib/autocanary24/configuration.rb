@@ -6,6 +6,8 @@ module AutoCanary24
     attr_accessor :keep_instances_balanced
     # Percent of instances which are added at once (depends on the actual number of instances, read from desired)
     attr_accessor :scaling_instance_percent
+    # Timeout to wait for checking AWS operations are done before do a rollback
+    attr_accessor :wait_timeout
 
     def initialize(**params)
 
@@ -25,6 +27,12 @@ module AutoCanary24
       unless params[:scaling_instance_percent].nil?
         raise 'ERR: scaling_instance_percent needs to be a number between 1 and 100' unless params[:scaling_instance_percent].is_a?(Integer) && (1..100).include?(params[:scaling_instance_percent])
         @scaling_instance_percent = params[:scaling_instance_percent]
+      end
+
+      @wait_timeout = 300
+      unless params[:wait_timeout].nil?
+        raise 'ERR: wait_timeout needs to be a number' unless params[:wait_timeout].is_a?(Integer)
+        @wait_timeout = params[:wait_timeout]
       end
 
     end

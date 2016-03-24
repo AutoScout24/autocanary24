@@ -4,9 +4,12 @@ module AutoCanary24
   class CanaryStack
     attr_reader :stack_name
 
-    def initialize(stack_name)
+    def initialize(stack_name, wait_timeout, sleep_during_wait = 5)
       raise "ERR: stack_name is missing" if stack_name.nil?
+      raise "ERR: wait_timeout is missing" if wait_timeout.nil?
       @stack_name = stack_name
+      @wait_timeout = wait_timeout
+      @sleep_during_wait = sleep_during_wait
     end
 
     def get_desired_capacity
@@ -27,9 +30,6 @@ module AutoCanary24
         desired_capacity: desired_capacity,
         honor_cooldown: false,
       })
-      puts resp
-      # TODO Check if fails
-
       wait_for_instances_in_asg(asg, desired_capacity)
     end
 
@@ -44,26 +44,24 @@ module AutoCanary24
       puts "attach #{instances.length} instances to #{elb}"
       elb_client = Aws::ElasticLoadBalancing::Client.new
       elb_client.register_instances_with_load_balancer({ load_balancer_name: elb, instances: instances })
-      wait_for_instances_on_elb(instances, elb)
+      wait_for_instances_attached_to_elb(instances, elb)
     end
 
-    def detach_instances_from_elb_and_wait(elb, instances)
+    def detach_instances_from_elb(elb, instances)
       puts "detach #{instances.length} instances from #{elb}"
       elb_client = Aws::ElasticLoadBalancing::Client.new
       elb_client.deregister_instances_from_load_balancer({ load_balancer_name: elb, instances: instances })
-      # TODO wait
     end
 
-    def detach_asg_from_elb(elb)
+    def detach_asg_from_elb_and_wait(elb)
       puts "detach_load_balancers"
       asg = get_autoscaling_group
       asg_client = Aws::AutoScaling::Client.new
       asg_client.detach_load_balancers({auto_scaling_group_name: asg, load_balancer_names: [elb]})
-      # TODO Check for success
-      # TODO Wait
+      wait_for_asg_detached_from_elb(asg, elb)
     end
 
-    def attach_asg_to_elb(elb)
+    def attach_asg_to_elb_and_wait(elb)
       puts "attach_load_balancers"
       asg = get_autoscaling_group
       asg_client = Aws::AutoScaling::Client.new
@@ -100,35 +98,65 @@ module AutoCanary24
       asg_client.describe_auto_scaling_groups({auto_scaling_group_names: [asg], max_records: 1})[:auto_scaling_groups][0]
     end
 
-    def wait_for_asg_on_elb(asg, elb)
-      puts "Waiting for the ASG is attached to the ELB"
+    def wait_for_asg_detached_from_elb(asg, elb)
+      puts "Waiting for the ASG #{asg} is detached from the ELB"
+      auto_scaling_group = describe_asg(asg)
 
+      if auto_scaling_group[:load_balancer_names].select{|l| l == elb}.length == 1
+        puts "WARNING: ASG still on the ELB!"
+      else
+        puts "ASG was detached from the ELB"
+      end
+
+      instances = auto_scaling_group[:instances].map{ |i| { instance_id: i[:instance_id] } }
+      wait_for_instances_detached_from_elb(instances, elb)
+    end
+
+    def wait_for_instances_detached_from_elb(instances, elb)
+      puts "Waiting for instances to get detached from the ELB"
+      elb_client = Aws::ElasticLoadBalancing::Client.new
+      retries = (@wait_timeout / @sleep_during_wait).round
+      while retries > 0
+        begin
+          elb_instances = elb_client.describe_instance_health({load_balancer_name: elb, instances: instances})
+          break if elb_instances[:instance_states].select{ |s| s.state == 'InService' }.length == 0
+        rescue Aws::ElasticLoadBalancing::Errors::InvalidInstance
+        end
+        sleep @sleep_during_wait
+        retries -= 1
+        # TODO think about what to do after timeout
+      end
+
+      puts "All instances were detached now"
+    end
+
+    def wait_for_asg_on_elb(asg, elb)
+      puts "Waiting for the ASG #{asg} is attached to the ELB"
       auto_scaling_group = describe_asg(asg)
 
       if auto_scaling_group[:load_balancer_names].select{|l| l == elb}.length == 0
-        # TODO: retry and rollback if failed?
         puts "WARNING: ASG not on the ELB yet!"
       else
         puts "ASG is attached to the ELB"
       end
 
       instances = auto_scaling_group[:instances].map{ |i| { instance_id: i[:instance_id] } }
-      wait_for_instances_on_elb(instances, elb)
+      wait_for_instances_attached_to_elb(instances, elb)
     end
 
-    def wait_for_instances_on_elb(instances, elb)
+    def wait_for_instances_attached_to_elb(instances, elb)
       puts "Waiting for the following new instances to get healthy in ELB:"
       instances.each{ |i| puts i[:instance_id] }
       elb_client = Aws::ElasticLoadBalancing::Client.new
-      timeout = 60 # TODO: move timeout value to configuration? timeout relativ to number of instances
-      while timeout > 0
+      retries = (@wait_timeout / @sleep_during_wait).round
+      while retries > 0
         begin
           elb_instances = elb_client.describe_instance_health({load_balancer_name: elb, instances: instances})
           break if elb_instances[:instance_states].select{ |s| s.state != 'InService' }.length == 0
         rescue Aws::ElasticLoadBalancing::Errors::InvalidInstance
         end
-        sleep 5
-        timeout -= 1
+        sleep @sleep_during_wait
+        retries -= 1
         # TODO think about what to do after timeout
       end
 
@@ -138,15 +166,14 @@ module AutoCanary24
     def wait_for_instances_in_asg(asg, expected_number_of_instances)
       puts "Check #{asg} to have #{expected_number_of_instances} instances running"
       asg_client = Aws::AutoScaling::Client.new
-      timeout = 60 # TODO: move timeout value to configuration? timeout relativ to number of instances
-      while timeout > 0
+      retries = (@wait_timeout / @sleep_during_wait).round
+      while retries > 0
         instances = asg_client.describe_auto_scaling_groups({auto_scaling_group_names: [asg]})[:auto_scaling_groups][0].instances
         healthy_instances = instances.select{ |i| i[:health_status] == "Healthy" && i[:lifecycle_state]=="InService"}.length
         puts healthy_instances
         break if healthy_instances == expected_number_of_instances
-
-        sleep 5
-        timeout -= 1
+        sleep @sleep_during_wait
+        retries -= 1
         # TODO think about what to do after timeout
       end
 

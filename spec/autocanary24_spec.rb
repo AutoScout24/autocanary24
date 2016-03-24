@@ -118,8 +118,8 @@ describe AutoCanary24::Client do
 
       it 'should attach all instances from Green stack to the ELB' do
         allow(green_cs).to receive(:get_desired_capacity).and_return(5)
-        allow(green_cs).to receive(:attach_asg_to_elb).with(elb)
-        allow(blue_cs).to receive(:detach_asg_from_elb).with(elb)
+        allow(green_cs).to receive(:attach_asg_to_elb_and_wait).with(elb)
+        allow(blue_cs).to receive(:detach_asg_from_elb_and_wait).with(elb)
 
         expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, green_instances.take(5))
 
@@ -128,10 +128,10 @@ describe AutoCanary24::Client do
 
       it 'should detach all instances from Blue stack from the ELB after successfully attaching the Green stack ASG' do
         allow(green_cs).to receive(:get_desired_capacity).and_return(5)
-        allow(green_cs).to receive(:attach_asg_to_elb).with(elb)
+        allow(green_cs).to receive(:attach_asg_to_elb_and_wait).with(elb)
 
         expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, green_instances.take(5)).ordered
-        expect(blue_cs).to receive(:detach_asg_from_elb).with(elb).ordered
+        expect(blue_cs).to receive(:detach_asg_from_elb_and_wait).with(elb).ordered
 
         ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
       end
@@ -155,8 +155,8 @@ describe AutoCanary24::Client do
         allow(ac24).to receive(:after_switch)
 
         allow(green_cs).to receive(:get_desired_capacity).and_return(5)
-        allow(green_cs).to receive(:attach_asg_to_elb)
-        allow(blue_cs).to receive(:detach_asg_from_elb)
+        allow(green_cs).to receive(:attach_asg_to_elb_and_wait)
+        allow(blue_cs).to receive(:detach_asg_from_elb_and_wait)
 
         green_instances.take(5).each {|i|
           expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, [i])
@@ -170,8 +170,8 @@ describe AutoCanary24::Client do
       let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 10}) }
       it 'should add exactly 1 instances at a time' do
         allow(green_cs).to receive(:get_desired_capacity).and_return(5)
-        allow(green_cs).to receive(:attach_asg_to_elb)
-        allow(blue_cs).to receive(:detach_asg_from_elb)
+        allow(green_cs).to receive(:attach_asg_to_elb_and_wait)
+        allow(blue_cs).to receive(:detach_asg_from_elb_and_wait)
 
         green_instances.take(5).each {|i|
           expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, [i])
@@ -185,8 +185,8 @@ describe AutoCanary24::Client do
       let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 50}) }
       it 'should add 3 instances the first time and 2 instances the second time' do
         allow(green_cs).to receive(:get_desired_capacity).and_return(5)
-        allow(green_cs).to receive(:attach_asg_to_elb)
-        allow(blue_cs).to receive(:detach_asg_from_elb)
+        allow(green_cs).to receive(:attach_asg_to_elb_and_wait)
+        allow(blue_cs).to receive(:detach_asg_from_elb_and_wait)
 
         expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, green_instances[0,3]).ordered
         expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, green_instances[3,2]).ordered
@@ -199,8 +199,8 @@ describe AutoCanary24::Client do
       let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 80}) }
       it 'should add 4 instances the first time and 1 instance the second time' do
         allow(green_cs).to receive(:get_desired_capacity).and_return(5)
-        allow(green_cs).to receive(:attach_asg_to_elb)
-        allow(blue_cs).to receive(:detach_asg_from_elb)
+        allow(green_cs).to receive(:attach_asg_to_elb_and_wait)
+        allow(blue_cs).to receive(:detach_asg_from_elb_and_wait)
 
         expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, green_instances[0,4]).ordered
         expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, green_instances[4,1]).ordered
@@ -213,8 +213,8 @@ describe AutoCanary24::Client do
       let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 100}) }
       it 'should add 5 instances the first time' do
         allow(green_cs).to receive(:get_desired_capacity).and_return(5)
-        allow(green_cs).to receive(:attach_asg_to_elb)
-        allow(blue_cs).to receive(:detach_asg_from_elb)
+        allow(green_cs).to receive(:attach_asg_to_elb_and_wait)
+        allow(blue_cs).to receive(:detach_asg_from_elb_and_wait)
 
         expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, green_instances.take(5))
 
@@ -227,13 +227,13 @@ describe AutoCanary24::Client do
 
       it 'should remove x instance(s) from current stack after x new instance(s) were added to the new stack' do
         allow(green_cs).to receive(:get_desired_capacity).and_return(5)
-        allow(green_cs).to receive(:attach_asg_to_elb)
-        allow(blue_cs).to receive(:detach_asg_from_elb)
+        allow(green_cs).to receive(:attach_asg_to_elb_and_wait)
+        allow(blue_cs).to receive(:detach_asg_from_elb_and_wait)
 
         expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, green_instances[0,3]).ordered
-        expect(blue_cs).to receive(:detach_instances_from_elb_and_wait).with(elb, blue_instances[0,3]).ordered
+        expect(blue_cs).to receive(:detach_instances_from_elb).with(elb, blue_instances[0, 3]).ordered
         expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, green_instances[3,2]).ordered
-        expect(blue_cs).to receive(:detach_instances_from_elb_and_wait).with(elb, blue_instances[3,2]).ordered
+        expect(blue_cs).to receive(:detach_instances_from_elb).with(elb, blue_instances[3, 2]).ordered
 
         ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
       end
