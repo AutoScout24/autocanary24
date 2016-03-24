@@ -29,10 +29,10 @@ module AutoCanary24
         before_switch(stacks, template, parameters, parent_stack_name, tags)
 
         puts 'Switch'
-        switch(stacks, elb, deployment_check)
+        failed = switch(stacks, elb, deployment_check)
 
         puts 'After switch'
-        after_switch(stacks, @configuration.keep_inactive_stack)
+        after_switch(stacks, failed || @configuration.keep_inactive_stack)
 
       rescue Exception => e
         puts e
@@ -76,6 +76,7 @@ module AutoCanary24
     def switch(stacks, elb, deployment_check = nil)
 
       desired = stacks[:stack_to_create].get_desired_capacity
+
       instances_to_toggle = (desired / 100.0 * @configuration.scaling_instance_percent).round
       instances_to_toggle = 1 if (instances_to_toggle < 1)
 
@@ -87,9 +88,17 @@ module AutoCanary24
 
         puts "Adding #{instances_to_toggle} instances (#{desired-missing+instances_to_toggle}/#{desired})"
 
-        stacks[:stack_to_create].attach_instances_to_elb_and_wait(elb, instances_to_create[desired-missing, instances_to_toggle])
+        begin
+          stacks[:stack_to_create].attach_instances_to_elb_and_wait(elb, instances_to_create[desired-missing, instances_to_toggle])
+        rescue
+          rollback(stacks, elb, instances_to_create, instances_to_delete)
+          return true
+        end
 
-        # unless is_ok.call(servers) rollback
+        if !(deployment_check.call(stacks, elb, instances_to_create))
+          rollback(stacks, elb, instances_to_create, instances_to_delete)
+          return true
+        end
 
         if @configuration.keep_instances_balanced && !stacks[:stack_to_delete].nil?
           stacks[:stack_to_delete].detach_instances_from_elb_and_wait(elb, instances_to_delete[desired-missing, instances_to_toggle])
@@ -103,6 +112,15 @@ module AutoCanary24
 
       stacks[:stack_to_create].attach_asg_to_elb(elb)
       stacks[:stack_to_delete].detach_asg_from_elb(elb) unless stacks[:stack_to_delete].nil?
+    end
+
+    def rollback(stacks, elb, instances_to_create, instances_to_delete)
+      begin
+        stacks[:stack_to_create].detach_instances_from_elb_and_wait(elb, instances_to_create)
+        stacks[:stack_to_delete].attach_instances_to_elb_and_wait(elb, instances_to_delete)
+      rescue Exception => e
+        puts "ROLLBACK FAILED: #{e}"
+      end
     end
 
     def after_switch(stacks, keep_inactive_stack)

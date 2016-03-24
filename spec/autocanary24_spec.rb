@@ -5,17 +5,17 @@ describe AutoCanary24::Client do
   let(:elb) { "ELB-123" }
   let(:blue_cs) { AutoCanary24::CanaryStack.new('mystack-B') }
   let(:green_cs) { AutoCanary24::CanaryStack.new('mystack-G') }
-  let(:instances_to_create) { [ { instance_id: 'i-872a6e01'}, {instance_id: 'i-872a6e02'}, {instance_id: 'i-872a6e03'}, {instance_id: 'i-872a6e04'}, {instance_id: 'i-872a6e05'} ] }
-  let(:instances_to_delete) { [ { instance_id: 'i-315b7e01'}, {instance_id: 'i-315b7e02'}, {instance_id: 'i-315b7e03'}, {instance_id: 'i-457b7e04'}, {instance_id: 'i-457b7e05'} ] }
+  let(:green_instances) { [ { instance_id: 'i-872a6e01'}, {instance_id: 'i-872a6e02'}, {instance_id: 'i-872a6e03'}, {instance_id: 'i-872a6e04'}, {instance_id: 'i-872a6e05'} ] }
+  let(:blue_instances) { [ { instance_id: 'i-315b7e01'}, {instance_id: 'i-315b7e02'}, {instance_id: 'i-315b7e03'}, {instance_id: 'i-457b7e04'}, {instance_id: 'i-457b7e05'} ] }
   let(:stack_name) { 'mystack' }
   let(:template) { 'template' }
   let(:parameters) { { param: "value" }}
   let(:tags) { [{ tag: "value" }] }
-  let(:deployment_check) { lambda { |servers| true } }
+  let(:deployment_check) { lambda { |stacks, elb, instances_to_create| true } }
 
   before do
-    allow(blue_cs).to receive(:get_instance_ids).and_return(instances_to_delete.take(5))
-    allow(green_cs).to receive(:get_instance_ids).and_return(instances_to_create.take(5))
+    allow(blue_cs).to receive(:get_instance_ids).and_return(blue_instances.take(5))
+    allow(green_cs).to receive(:get_instance_ids).and_return(green_instances.take(5))
     allow(ac24).to receive(:get_elb).with(stack_name).and_return(elb)
   end
 
@@ -121,7 +121,7 @@ describe AutoCanary24::Client do
         allow(green_cs).to receive(:attach_asg_to_elb).with(elb)
         allow(blue_cs).to receive(:detach_asg_from_elb).with(elb)
 
-        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, instances_to_create.take(5))
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, green_instances.take(5))
 
         ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
       end
@@ -130,7 +130,7 @@ describe AutoCanary24::Client do
         allow(green_cs).to receive(:get_desired_capacity).and_return(5)
         allow(green_cs).to receive(:attach_asg_to_elb).with(elb)
 
-        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, instances_to_create.take(5)).ordered
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, green_instances.take(5)).ordered
         expect(blue_cs).to receive(:detach_asg_from_elb).with(elb).ordered
 
         ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
@@ -158,7 +158,7 @@ describe AutoCanary24::Client do
         allow(green_cs).to receive(:attach_asg_to_elb)
         allow(blue_cs).to receive(:detach_asg_from_elb)
 
-        instances_to_create.take(5).each {|i|
+        green_instances.take(5).each {|i|
           expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, [i])
         }
 
@@ -173,7 +173,7 @@ describe AutoCanary24::Client do
         allow(green_cs).to receive(:attach_asg_to_elb)
         allow(blue_cs).to receive(:detach_asg_from_elb)
 
-        instances_to_create.take(5).each {|i|
+        green_instances.take(5).each {|i|
           expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, [i])
         }
 
@@ -188,8 +188,8 @@ describe AutoCanary24::Client do
         allow(green_cs).to receive(:attach_asg_to_elb)
         allow(blue_cs).to receive(:detach_asg_from_elb)
 
-        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, instances_to_create[0,3]).ordered
-        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, instances_to_create[3,2]).ordered
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, green_instances[0,3]).ordered
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, green_instances[3,2]).ordered
 
         ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
       end
@@ -202,8 +202,8 @@ describe AutoCanary24::Client do
         allow(green_cs).to receive(:attach_asg_to_elb)
         allow(blue_cs).to receive(:detach_asg_from_elb)
 
-        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, instances_to_create[0,4]).ordered
-        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, instances_to_create[4,1]).ordered
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, green_instances[0,4]).ordered
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, green_instances[4,1]).ordered
 
         ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
       end
@@ -216,7 +216,7 @@ describe AutoCanary24::Client do
         allow(green_cs).to receive(:attach_asg_to_elb)
         allow(blue_cs).to receive(:detach_asg_from_elb)
 
-        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, instances_to_create.take(5))
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, green_instances.take(5))
 
         ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
       end
@@ -230,10 +230,10 @@ describe AutoCanary24::Client do
         allow(green_cs).to receive(:attach_asg_to_elb)
         allow(blue_cs).to receive(:detach_asg_from_elb)
 
-        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, instances_to_create[0,3]).ordered
-        expect(blue_cs).to receive(:detach_instances_from_elb_and_wait).with(elb, instances_to_delete[0,3]).ordered
-        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, instances_to_create[3,2]).ordered
-        expect(blue_cs).to receive(:detach_instances_from_elb_and_wait).with(elb, instances_to_delete[3,2]).ordered
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, green_instances[0,3]).ordered
+        expect(blue_cs).to receive(:detach_instances_from_elb_and_wait).with(elb, blue_instances[0,3]).ordered
+        expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, green_instances[3,2]).ordered
+        expect(blue_cs).to receive(:detach_instances_from_elb_and_wait).with(elb, blue_instances[3,2]).ordered
 
         ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
       end
@@ -273,31 +273,70 @@ describe AutoCanary24::Client do
   end
 
   context 'Rollback' do
+    before do
+      stacks = {stack_to_create: green_cs, stack_to_delete: blue_cs}
+      allow(ac24).to receive(:get_stacks_to_create_and_to_delete_for).and_return(stacks)
 
-    # describe 'when switching from Blue to Green stack and a user-defined deployment check fails' do
-    #   it 'should trigger a rollback' do
-    #     pending
-    #   end
-    # end
-    #
-    # describe 'when new instances dont get healthy at the ELB' do
-    #   it 'should trigger a rollback' do
-    #     pending
-    #   end
-    # end
-    #
-    # describe 'when a rollback was triggered' do
-    #   it 'should remove already added instances from Green stack from ELB' do
-    #     pending
-    #   end
-    #
-    #   it 'should add already removed instances from Blue stack to the ELB' do
-    #     pending
-    #   end
-    #
-    #   it 'should not terminate the instances of the Green stack' do
-    #     pending
-    #   end
-    # end
+      allow(ac24).to receive(:before_switch)
+
+      allow(green_cs).to receive(:get_desired_capacity).and_return(5)
+    end
+
+    describe 'when switching from Blue to Green stack and a user-defined deployment check fails' do
+      let(:deployment_check) { lambda { |stacks, elb, instances_to_create| false } }
+
+      it 'should trigger a rollback' do
+        allow(ac24).to receive(:after_switch)
+        expect(ac24).to receive(:rollback)
+        expect(green_cs).not_to receive(:attach_asg_to_elb)
+
+        ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
+      end
+    end
+
+    describe 'when switching from Blue to Green stack and new instances dont get healthy at the ELB' do
+      it 'should trigger a rollback' do
+        allow(ac24).to receive(:after_switch)
+        allow(green_cs).to receive(:attach_instances_to_elb_and_wait).and_raise("timeout")
+
+        expect(ac24).to receive(:rollback)
+
+        ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
+      end
+    end
+
+    describe 'when a rollback was triggered' do
+      let(:deployment_check) { lambda { |stacks, elb, instances_to_create| false } }
+
+      it 'should remove already added instances from Green stack from ELB' do
+        allow(ac24).to receive(:after_switch)
+        expect(green_cs).to receive(:detach_instances_from_elb_and_wait).with(elb, green_instances)
+
+        ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
+      end
+
+      it 'should add already removed instances from Blue stack to the ELB' do
+        allow(ac24).to receive(:after_switch)
+        allow(green_cs).to receive(:detach_instances_from_elb_and_wait).with(elb, green_instances)
+        expect(blue_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, blue_instances)
+
+        ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
+      end
+
+      it 'should not terminate the instances of the Green stack' do
+        allow(blue_cs).to receive(:resume_asg_processes)
+        allow(green_cs).to receive(:resume_asg_processes)
+        expect(ac24).not_to receive(:delete_stack)
+
+        ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
+      end
+
+      it 'should resume the ASG processes' do
+        expect(blue_cs).to receive(:resume_asg_processes)
+        expect(green_cs).to receive(:resume_asg_processes)
+
+        ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
+      end
+    end
   end
 end
