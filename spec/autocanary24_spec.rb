@@ -117,7 +117,7 @@ describe AutoCanary24::Client do
     describe 'when switching from Blue to Green stack' do
 
       it 'should attach all instances from Green stack to the ELB' do
-        allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
+        allow(green_cs).to receive(:get_desired_capacity).and_return(5)
         allow(green_cs).to receive(:attach_asg_to_elb).with(elb)
         allow(blue_cs).to receive(:detach_asg_from_elb).with(elb)
 
@@ -127,7 +127,7 @@ describe AutoCanary24::Client do
       end
 
       it 'should detach all instances from Blue stack from the ELB after successfully attaching the Green stack ASG' do
-        allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
+        allow(green_cs).to receive(:get_desired_capacity).and_return(5)
         allow(green_cs).to receive(:attach_asg_to_elb).with(elb)
 
         expect(green_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, instances_to_create.take(5)).ordered
@@ -154,7 +154,7 @@ describe AutoCanary24::Client do
         allow(ac24).to receive(:before_switch)
         allow(ac24).to receive(:after_switch)
 
-        allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
+        allow(green_cs).to receive(:get_desired_capacity).and_return(5)
         allow(green_cs).to receive(:attach_asg_to_elb)
         allow(blue_cs).to receive(:detach_asg_from_elb)
 
@@ -169,7 +169,7 @@ describe AutoCanary24::Client do
     describe 'when desired count of active stack is 5 and scaling_instance_percent is 10' do
       let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 10}) }
       it 'should add exactly 1 instances at a time' do
-        allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
+        allow(green_cs).to receive(:get_desired_capacity).and_return(5)
         allow(green_cs).to receive(:attach_asg_to_elb)
         allow(blue_cs).to receive(:detach_asg_from_elb)
 
@@ -184,7 +184,7 @@ describe AutoCanary24::Client do
     describe 'when desired count of active stack is 5 and scaling_instance_percent is 50' do
       let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 50}) }
       it 'should add 3 instances the first time and 2 instances the second time' do
-        allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
+        allow(green_cs).to receive(:get_desired_capacity).and_return(5)
         allow(green_cs).to receive(:attach_asg_to_elb)
         allow(blue_cs).to receive(:detach_asg_from_elb)
 
@@ -198,7 +198,7 @@ describe AutoCanary24::Client do
     describe 'when desired count of active stack is 5 and scaling_instance_percent is 80' do
       let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 80}) }
       it 'should add 4 instances the first time and 1 instance the second time' do
-        allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
+        allow(green_cs).to receive(:get_desired_capacity).and_return(5)
         allow(green_cs).to receive(:attach_asg_to_elb)
         allow(blue_cs).to receive(:detach_asg_from_elb)
 
@@ -212,7 +212,7 @@ describe AutoCanary24::Client do
     describe 'when desired count of active stack is 5 and scaling_instance_percent is 100' do
       let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 100}) }
       it 'should add 5 instances the first time' do
-        allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
+        allow(green_cs).to receive(:get_desired_capacity).and_return(5)
         allow(green_cs).to receive(:attach_asg_to_elb)
         allow(blue_cs).to receive(:detach_asg_from_elb)
 
@@ -226,7 +226,7 @@ describe AutoCanary24::Client do
       let(:ac24) { AutoCanary24::Client.new({scaling_instance_percent: 50, keep_instances_balanced: true }) }
 
       it 'should remove x instance(s) from current stack after x new instance(s) were added to the new stack' do
-        allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
+        allow(green_cs).to receive(:get_desired_capacity).and_return(5)
         allow(green_cs).to receive(:attach_asg_to_elb)
         allow(blue_cs).to receive(:detach_asg_from_elb)
 
