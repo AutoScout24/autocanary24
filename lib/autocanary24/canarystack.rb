@@ -124,9 +124,9 @@ module AutoCanary24
         end
         sleep @sleep_during_wait
         retries -= 1
-        # TODO think about what to do after timeout
       end
 
+      raise "Timeout. Couldn't wait for instances '#{instances}' to get detached from ELB '#{elb}'." if retries == 0
       puts "All instances were detached now"
     end
 
@@ -157,9 +157,9 @@ module AutoCanary24
         end
         sleep @sleep_during_wait
         retries -= 1
-        # TODO think about what to do after timeout
       end
 
+      raise "Timeout. Couldn't wait for instances '#{instances}' to get attached to ELB '#{elb}'." if retries == 0
       puts "All new instances are healthy now"
     end
 
@@ -174,9 +174,9 @@ module AutoCanary24
         break if healthy_instances == expected_number_of_instances
         sleep @sleep_during_wait
         retries -= 1
-        # TODO think about what to do after timeout
       end
 
+      raise "Timeout. Couldn't wait for #{expected_number_of_instances} instances to get healthy in ASG '#{asg}'." if retries == 0
       puts "All new instances are healthy now"
     end
 

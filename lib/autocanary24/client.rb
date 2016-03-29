@@ -101,7 +101,11 @@ module AutoCanary24
         end
 
         if @configuration.keep_instances_balanced && !stacks[:stack_to_delete].nil?
-          stacks[:stack_to_delete].detach_instances_from_elb(elb, instances_to_delete[desired-missing, instances_to_toggle])
+          begin
+            stacks[:stack_to_delete].detach_instances_from_elb(elb, instances_to_delete[desired-missing, instances_to_toggle])
+          rescue Exception => e
+            puts "WARNING: #{e}"
+          end
         end
 
         missing -= instances_to_toggle
