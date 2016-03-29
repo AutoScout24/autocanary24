@@ -14,8 +14,8 @@ module AutoCanary24
 
     def deploy_stack(parent_stack_name, template, parameters, tags = nil, deployment_check = lambda { |stacks, elb, instances_to_create| true })
       begin
-        puts "AC24: starting to deploy #{parent_stack_name}"
-        puts "Using the following configuration #{@configuration.scaling_instance_percent}"
+        write_log(parent_stack_name, "Starting the deployment")
+        write_log(parent_stack_name, "Using the following configuration #{@configuration.inspect}")
 
         elb = get_elb(parent_stack_name)
         raise "No ELB found in stack #{parent_stack_name}" if elb.nil?
@@ -25,36 +25,40 @@ module AutoCanary24
 
         stacks = get_stacks_to_create_and_to_delete_for(blue_cs, green_cs, elb)
 
-        puts 'Before switch'
         before_switch(stacks, template, parameters, parent_stack_name, tags)
 
-        puts 'Switch'
         failed = switch(stacks, elb, deployment_check)
 
-        puts 'After switch'
         after_switch(stacks, failed || @configuration.keep_inactive_stack)
 
       rescue Exception => e
-        puts e
+        write_log(parent_stack_name, "Unexpected exception #{e}")
       end
+      write_log(parent_stack_name, "Deployment finished")
     end
 
     private
     def get_stacks_to_create_and_to_delete_for(blue_cs, green_cs, elb)
 
-      if green_cs.is_attached_to(elb)
-        puts "Green stack is attached to ELB #{elb}, blue will be created, green will be deleted."
+      green_is_attached = green_cs.is_attached_to(elb)
+      blue_is_attached = blue_cs.is_attached_to(elb)
+
+      if green_is_attached
         stack_to_delete = green_cs
         stack_to_create = blue_cs
-      elsif blue_cs.is_attached_to(elb)
-        puts "Blue stack is attached to ELB #{elb}, green will be created, blue will be deleted."
+      elsif blue_is_attached
         stack_to_delete = blue_cs
         stack_to_create = green_cs
       else
-        puts "No stack is attached to ELB #{elb}, blue will be created."
         stack_to_delete = nil
         stack_to_create = blue_cs
       end
+
+      write_log(blue_cs.stack_name, blue_is_attached ? "Stack is attached to ELB #{elb}" : "Stack is not attached")
+      write_log(green_cs.stack_name, green_is_attached ? "Stack is attached to ELB #{elb}" : "Stack is not attached")
+
+      write_log(stack_to_create.stack_name, "will be created")
+      write_log(stack_to_delete.stack_name, "will be deleted")
 
       {stack_to_create: stack_to_create, stack_to_delete: stack_to_delete}
     end
@@ -65,6 +69,8 @@ module AutoCanary24
 
       unless stacks[:stack_to_delete].nil?
         desired = stacks[:stack_to_delete].get_desired_capacity
+        write_log(stacks[:stack_to_delete].stack_name, "Found #{desired} instances")
+
         stacks[:stack_to_create].set_desired_capacity_and_wait(desired)
         stacks[:stack_to_delete].suspend_asg_processes
       end
@@ -86,7 +92,7 @@ module AutoCanary24
       missing = desired
       while missing > 0
 
-        puts "Adding #{instances_to_toggle} instances (#{desired-missing+instances_to_toggle}/#{desired})"
+        write_log(stacks[:stack_to_create].stack_name, "Adding #{instances_to_toggle} instances (#{desired-missing+instances_to_toggle}/#{desired})")
 
         begin
           stacks[:stack_to_create].attach_instances_to_elb_and_wait(elb, instances_to_create[desired-missing, instances_to_toggle])
@@ -102,9 +108,10 @@ module AutoCanary24
 
         if @configuration.keep_instances_balanced && !stacks[:stack_to_delete].nil?
           begin
+            write_log(stacks[:stack_to_delete].stack_name, "Removing #{instances_to_toggle} instances (#{instances_to_delete[desired-missing, instances_to_toggle]})")
             stacks[:stack_to_delete].detach_instances_from_elb(elb, instances_to_delete[desired-missing, instances_to_toggle])
           rescue Exception => e
-            puts "WARNING: #{e}"
+            write_log(stacks[:stack_to_delete].stack_name, "WARNING: #{e}")
           end
         end
 
@@ -114,8 +121,13 @@ module AutoCanary24
         end
       end
 
+      write_log(stacks[:stack_to_create].stack_name, "Attach to ELB #{elb}")
       stacks[:stack_to_create].attach_asg_to_elb_and_wait(elb)
-      stacks[:stack_to_delete].detach_asg_from_elb_and_wait(elb) unless stacks[:stack_to_delete].nil?
+
+      unless stacks[:stack_to_delete].nil?
+        write_log(stacks[:stack_to_delete].stack_name, "Detach from ELB #{elb}")
+        stacks[:stack_to_delete].detach_asg_from_elb_and_wait(elb)
+      end
     end
 
     def rollback(stacks, elb, instances_to_create, instances_to_delete)
@@ -123,7 +135,7 @@ module AutoCanary24
         stacks[:stack_to_create].detach_instances_from_elb(elb, instances_to_create)
         stacks[:stack_to_delete].attach_instances_to_elb_and_wait(elb, instances_to_delete)
       rescue Exception => e
-        puts "ROLLBACK FAILED: #{e}"
+        write_log("", "ROLLBACK FAILED: #{e}")
       end
     end
 
@@ -151,7 +163,7 @@ module AutoCanary24
     end
 
     def create_stack(stack_name, template, parameters, parent_stack_name, tags)
-      puts "create_stack"
+      write_log(stack_name, "Create/Update stack")
       Stacker.create_or_update_stack(stack_name, template, parameters, parent_stack_name, tags)
     end
 
@@ -159,9 +171,12 @@ module AutoCanary24
       Stacker.delete_stack(stack_name) unless stack_name.nil?
     end
 
-    private
     def get_canary_stack(stack_name)
       CanaryStack.new(stack_name, @configuration.wait_timeout)
+    end
+
+    def write_log(stack_name, message)
+      puts "#{Time.now.utc}\t#{stack_name.ljust(20)}\t#{message.ljust(40)}"
     end
   end
 

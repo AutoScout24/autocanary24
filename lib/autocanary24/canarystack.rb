@@ -13,17 +13,13 @@ module AutoCanary24
     end
 
     def get_desired_capacity
-      puts "Get desired capacity for stack"
       asg = get_autoscaling_group
       asg_client = Aws::AutoScaling::Client.new
-      result = describe_asg(asg).desired_capacity
-      puts "#{result}"
-      result
+      describe_asg(asg).desired_capacity
     end
 
     def set_desired_capacity_and_wait(desired_capacity)
       asg = get_autoscaling_group
-      puts "Set desire capacity of ASG #{asg} to #{desired_capacity}"
       asg_client = Aws::AutoScaling::Client.new
       resp = asg_client.set_desired_capacity({
         auto_scaling_group_name: asg,
@@ -34,27 +30,23 @@ module AutoCanary24
     end
 
     def is_attached_to(elb)
-      puts "is attached to #{elb}?"
       asg = get_autoscaling_group
       elbs = get_attached_loadbalancers(asg) unless asg.nil?
       (!elbs.nil? && elbs.any? { |e| e.load_balancer_name == elb })
     end
 
     def attach_instances_to_elb_and_wait(elb, instances)
-      puts "attach #{instances.length} instances to #{elb}"
       elb_client = Aws::ElasticLoadBalancing::Client.new
       elb_client.register_instances_with_load_balancer({ load_balancer_name: elb, instances: instances })
       wait_for_instances_attached_to_elb(instances, elb)
     end
 
     def detach_instances_from_elb(elb, instances)
-      puts "detach #{instances.length} instances from #{elb}"
       elb_client = Aws::ElasticLoadBalancing::Client.new
       elb_client.deregister_instances_from_load_balancer({ load_balancer_name: elb, instances: instances })
     end
 
     def detach_asg_from_elb_and_wait(elb)
-      puts "detach_load_balancers"
       asg = get_autoscaling_group
       asg_client = Aws::AutoScaling::Client.new
       asg_client.detach_load_balancers({auto_scaling_group_name: asg, load_balancer_names: [elb]})
@@ -62,7 +54,6 @@ module AutoCanary24
     end
 
     def attach_asg_to_elb_and_wait(elb)
-      puts "attach_load_balancers"
       asg = get_autoscaling_group
       asg_client = Aws::AutoScaling::Client.new
       asg_client.attach_load_balancers({auto_scaling_group_name: asg, load_balancer_names: [elb]})
@@ -71,7 +62,6 @@ module AutoCanary24
 
     def suspend_asg_processes
       processes = ['Launch', 'Terminate', 'AddToLoadBalancer', 'AlarmNotification']
-      puts "suspend asg processes: #{processes}"
       asg = get_autoscaling_group
       asg_client = Aws::AutoScaling::Client.new
       asg_client.suspend_processes({auto_scaling_group_name: asg, scaling_processes: processes})
@@ -79,7 +69,6 @@ module AutoCanary24
 
     def resume_asg_processes
       processes = ['Launch', 'Terminate', 'AddToLoadBalancer', 'AlarmNotification']
-      puts "resume asg processes: #{processes}"
       asg = get_autoscaling_group
       asg_client = Aws::AutoScaling::Client.new
       asg_client.resume_processes({auto_scaling_group_name: asg, scaling_processes: processes})
@@ -99,13 +88,10 @@ module AutoCanary24
     end
 
     def wait_for_asg_detached_from_elb(asg, elb)
-      puts "Waiting for the ASG #{asg} is detached from the ELB"
       auto_scaling_group = describe_asg(asg)
 
       if auto_scaling_group[:load_balancer_names].select{|l| l == elb}.length == 1
         puts "WARNING: ASG still on the ELB!"
-      else
-        puts "ASG was detached from the ELB"
       end
 
       instances = auto_scaling_group[:instances].map{ |i| { instance_id: i[:instance_id] } }
@@ -113,7 +99,6 @@ module AutoCanary24
     end
 
     def wait_for_instances_detached_from_elb(instances, elb)
-      puts "Waiting for instances to get detached from the ELB"
       elb_client = Aws::ElasticLoadBalancing::Client.new
       retries = (@wait_timeout / @sleep_during_wait).round
       while retries > 0
@@ -127,17 +112,13 @@ module AutoCanary24
       end
 
       raise "Timeout. Couldn't wait for instances '#{instances}' to get detached from ELB '#{elb}'." if retries == 0
-      puts "All instances were detached now"
     end
 
     def wait_for_asg_on_elb(asg, elb)
-      puts "Waiting for the ASG #{asg} is attached to the ELB"
       auto_scaling_group = describe_asg(asg)
 
       if auto_scaling_group[:load_balancer_names].select{|l| l == elb}.length == 0
         puts "WARNING: ASG not on the ELB yet!"
-      else
-        puts "ASG is attached to the ELB"
       end
 
       instances = auto_scaling_group[:instances].map{ |i| { instance_id: i[:instance_id] } }
@@ -145,8 +126,6 @@ module AutoCanary24
     end
 
     def wait_for_instances_attached_to_elb(instances, elb)
-      puts "Waiting for the following new instances to get healthy in ELB:"
-      instances.each{ |i| puts i[:instance_id] }
       elb_client = Aws::ElasticLoadBalancing::Client.new
       retries = (@wait_timeout / @sleep_during_wait).round
       while retries > 0
@@ -160,28 +139,23 @@ module AutoCanary24
       end
 
       raise "Timeout. Couldn't wait for instances '#{instances}' to get attached to ELB '#{elb}'." if retries == 0
-      puts "All new instances are healthy now"
     end
 
     def wait_for_instances_in_asg(asg, expected_number_of_instances)
-      puts "Check #{asg} to have #{expected_number_of_instances} instances running"
       asg_client = Aws::AutoScaling::Client.new
       retries = (@wait_timeout / @sleep_during_wait).round
       while retries > 0
         instances = asg_client.describe_auto_scaling_groups({auto_scaling_group_names: [asg]})[:auto_scaling_groups][0].instances
         healthy_instances = instances.select{ |i| i[:health_status] == "Healthy" && i[:lifecycle_state]=="InService"}.length
-        puts healthy_instances
         break if healthy_instances == expected_number_of_instances
         sleep @sleep_during_wait
         retries -= 1
       end
 
-      raise "Timeout. Couldn't wait for #{expected_number_of_instances} instances to get healthy in ASG '#{asg}'." if retries == 0
-      puts "All new instances are healthy now"
+      raise "Timeout. Only #{healthy_instances} of #{expected_number_of_instances} instances got healthy in ASG '#{asg}'." if retries == 0
     end
 
     def get_attached_loadbalancers(asg)
-      puts "get_attached_loadbalancers"
       asg_client = Aws::AutoScaling::Client.new
       asg_client.describe_load_balancers({ auto_scaling_group_name: asg }).load_balancers
     end

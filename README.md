@@ -1,8 +1,8 @@
 # AutoCanary24
 
-Ruby utility to do [blue/green](http://martinfowler.com/bliki/BlueGreenDeployment.html) and [canary](http://martinfowler.com/bliki/CanaryRelease.html) deployments with AWS CloudFormation stacks.
+AutoCanary24 is a ruby utility to do [blue/green](http://martinfowler.com/bliki/BlueGreenDeployment.html) and [canary](http://martinfowler.com/bliki/CanaryRelease.html) deployments with AWS CloudFormation stacks.
 
-This library use the [Swap AutoScaling Groups](http://www.slideshare.net/AmazonWebServices/dvo401-deep-dive-into-bluegreen-deployments-on-aws/32) and expects two stacks. One "base" stack which includes at least the `ELB` and another which includes the `AutoScaling Group`.
+This library use the [Swap AutoScaling Groups](http://www.slideshare.net/AmazonWebServices/dvo401-deep-dive-into-bluegreen-deployments-on-aws/32) approach and expects two stacks. A "base" stack which includes at least the `ELB` and another which includes the `AutoScaling Group`.
 
 
 ## Installation
@@ -24,27 +24,38 @@ Or install it yourself as:
 
 ## Usage
 
-Initialize the client, e.g. in your `Rakefile`:
+Initialize the client, e.g. in your `Rakefile` and deploy your stack:
 
 ```ruby
-ac = AutoCanary24::Client.new(configuration: {})
-ac.deploy_stack(stack_name, template, parameters, parent_stack_name = nil, tags = nil)
+# Deploy the base stack before
+
+ac = AutoCanary24::Client.new({
+  keep_inactive_stack: false,
+  scaling_instance_percent: 50,
+  keep_instances_balanced: false})
+
+ac.deploy_stack(parent_stack_name, template, parameters, tags, deployment_check)
 ```
+
+- `parent_stack_name`: the name of the 'base' stack. In addition `AutoStacker24` will read the output parameters of an existing stack and merge them to the given parameters.
+- `template`: is either the template json data itself or the name of a file containing the template body
+- `parameters`: specify the input parameter as a simple ruby hash. It gets converted to the
+  cumbersome AWS format automatically.
+  The template body will be validated and optionally preprocessed.
+- `tags`: Optional. Key-value pairs to associate with this stack.
+- 'deployment_check': Optional. A `lambda` which is executed whenever new instances are added to the ELB. If `true` AutoCanary continues, if `false` it will rollback to the current stack.
+
+> For more information about stacked CloudFormation stacks visit [AutoStacker24](https://github.com/autoscout24/autostacker24).
 
 The available configuration:
 - `keep_inactive_stack`: If `true` the inactive stack gets not deleted. Default is `false`
 - `keep_instances_balanced`: If `true` a instance from current stack gets removed whenever a new instance from the new stack is added. If `false` first all new instances are created and afterwards the old instances gets removed.
 - `scaling_instance_percent`: Percent of instances which are added at once (depends on the actual number of instances, read from desired)
 
-## Requirements
-> It's not necessary to set the [desired count]() as this will be overwritten by `AutoCanary24`.
 
 
 ### Examples
-TODO: `High Availability` (inservice, balanced=false)  
-TODO: `Fast` (standby, 100%, no wait interval)  
-TODO: `Secure`  
-
+Have a look into the [examples subfolder](https://github.com/autoscout24/autocanary24/blob/master/examples/)
 
 ## Development
 
