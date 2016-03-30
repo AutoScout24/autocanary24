@@ -2,11 +2,15 @@ require "aws-sdk-core"
 require "autostacker24"
 require_relative "../lib/autocanary24/client"
 
+STACK_NAME    = 'autocanary24-example'
+BASE_TEMPLATE = 'base-stack.json'
+ASG_TEMPLATE  = 'asg-stack.json'
+
 task :default do
 
   # 1) Create the base stack which includes at least the ELB
-  parameters = {}
-  Stacker.create_or_update_stack('autocanary24-example', 'base-stack.json', parameters)
+  base_parameters = {}
+  Stacker.create_or_update_stack(STACK_NAME, BASE_TEMPLATE, base_parameters)
 
   # 2) Create the stack which includes the ASG
   client = AutoCanary24::Client.new({
@@ -14,7 +18,7 @@ task :default do
   })
 
   parameters = {}
-  client.deploy_stack('autocanary24-example', 'asg-stack.json', parameters)
+  client.deploy_stack(STACK_NAME, ASG_TEMPLATE, parameters)
 
 end
 

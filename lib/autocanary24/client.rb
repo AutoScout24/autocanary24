@@ -58,7 +58,7 @@ module AutoCanary24
       write_log(green_cs.stack_name, green_is_attached ? "Stack is attached to ELB #{elb}" : "Stack is not attached")
 
       write_log(stack_to_create.stack_name, "will be created")
-      write_log(stack_to_delete.stack_name, "will be deleted")
+      write_log(stack_to_delete.stack_name, "will be deleted") unless stack_to_delete.nil?
 
       {stack_to_create: stack_to_create, stack_to_delete: stack_to_delete}
     end
