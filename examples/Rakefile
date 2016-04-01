@@ -1,0 +1,85 @@
+require 'aws-sdk-core'
+require 'autostacker24'
+require_relative '../lib/autocanary24/client'
+
+STACK_NAME    = 'autocanary24-example'
+BASE_TEMPLATE = 'base-stack.json'
+ASG_TEMPLATE  = 'asg-stack.json'
+ASG_PARAMETER = { MinimumNumberOfServers: 5, MaximumNumberOfServers: 5 }
+TAGS          = [ { key: 'Name', value: STACK_NAME } ]
+
+desc 'switch complete stacks at once not keeping the inactive stack'
+task :sample_1 do
+  puts 'executing sample_1: switch complete stacks at once not keeping the inactive stack'
+
+  # 1) Create the base stack which includes at least the ELB
+  Stacker.create_or_update_stack(STACK_NAME, BASE_TEMPLATE, {}, nil, TAGS)
+
+  # 2) Create the stack which includes the ASG
+  client = AutoCanary24::Client.new({
+    :keep_inactive_stack      => false,
+    :keep_instances_balanced  => false,
+    :scaling_instance_percent => 100
+  })
+  client.deploy_stack(STACK_NAME, ASG_TEMPLATE, ASG_PARAMETER, TAGS)
+end
+
+desc 'switch complete stacks at once keeping the inactive stack'
+task :sample_2 do
+  puts 'executing sample_2: switch complete stacks at once keeping the inactive stack'
+
+  # 1) Create the base stack which includes at least the ELB
+  Stacker.create_or_update_stack(STACK_NAME, BASE_TEMPLATE, {}, nil, TAGS)
+
+  # 2) Create the stack which includes the ASG
+  client = AutoCanary24::Client.new({
+      :keep_inactive_stack      => true,
+      :keep_instances_balanced  => false,
+      :scaling_instance_percent => 100
+  })
+  client.deploy_stack(STACK_NAME, ASG_TEMPLATE, ASG_PARAMETER, TAGS)
+end
+
+desc 'switch incrementally the stacks keeping the inactive stack'
+task :sample_3 do
+  puts 'executing sample_3: switch incrementally the stacks keeping the inactive stack'
+
+  # 1) Create the base stack which includes at least the ELB
+  Stacker.create_or_update_stack(STACK_NAME, BASE_TEMPLATE, {}, nil, TAGS)
+
+  # 2) Create the stack which includes the ASG
+  client = AutoCanary24::Client.new({
+      :keep_inactive_stack      => true,
+      :keep_instances_balanced  => true,
+      :scaling_instance_percent => 20
+  })
+  client.deploy_stack(STACK_NAME, ASG_TEMPLATE, ASG_PARAMETER, TAGS)
+end
+
+desc 'switch incrementally the stacks and rollback'
+task :sample_4 do
+  puts 'executing sample_4: switch incrementally the stacks and rollback'
+
+  # 1) Create the base stack which includes at least the ELB
+  Stacker.create_or_update_stack(STACK_NAME, BASE_TEMPLATE, {}, nil, TAGS)
+
+  # 2) Create the stack which includes the ASG
+  client = AutoCanary24::Client.new({
+      :keep_inactive_stack      => true,
+      :keep_instances_balanced  => true,
+      :scaling_instance_percent => 20
+  })
+  deployment_check = lambda { |stacks, elb, new_attached_instances|
+    # break during the switch from blue to green in the third iteration
+    !(stacks[:stack_to_create].stack_name == "#{STACK_NAME}-G" && new_attached_instances.length > 2)
+  }
+  client.deploy_stack(STACK_NAME, ASG_TEMPLATE, ASG_PARAMETER, TAGS, deployment_check)
+end
+
+task :cleanup do
+  puts 'executing cleanup'
+
+  Stacker.delete_stack("#{STACK_NAME}-B") unless Stacker.find_stack("#{STACK_NAME}-B").nil?
+  Stacker.delete_stack("#{STACK_NAME}-G") unless Stacker.find_stack("#{STACK_NAME}-G").nil?
+  Stacker.delete_stack(STACK_NAME) unless Stacker.find_stack(STACK_NAME).nil?
+end
