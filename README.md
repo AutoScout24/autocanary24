@@ -1,5 +1,7 @@
 # AutoCanary24
 
+[![Build Status](https://travis-ci.org/AutoScout24/autocanary24.svg)](https://travis-ci.org/AutoScout24/autocanary24)
+
 AutoCanary24 is a ruby utility to do [blue/green](http://martinfowler.com/bliki/BlueGreenDeployment.html) and [canary](http://martinfowler.com/bliki/CanaryRelease.html) deployments with AWS CloudFormation stacks.
 
 This library use the [Swap AutoScaling Groups](http://www.slideshare.net/AmazonWebServices/dvo401-deep-dive-into-bluegreen-deployments-on-aws/32) approach and expects two stacks. A "base" stack which includes at least the `ELB` and another which includes the `AutoScaling Group`.
