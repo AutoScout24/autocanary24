@@ -77,7 +77,9 @@ module AutoCanary24
     def get_instance_ids
       asg = get_autoscaling_group
       asg_client = Aws::AutoScaling::Client.new
-      describe_asg(asg)[:instances].map{ |i| { instance_id: i[:instance_id] } }
+      describe_asg(asg)[:instances] \
+        .select { |i| i[:lifecycle_state]=="InService" } \
+        .map{ |i| { instance_id: i[:instance_id] } }
     end
 
 

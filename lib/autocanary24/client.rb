@@ -94,7 +94,10 @@ module AutoCanary24
       instances_to_toggle = 1 if (instances_to_toggle < 1)
 
       instances_to_attach = stacks[:stack_to_create].get_instance_ids
+      write_log(stacks[:stack_to_create].stack_name, "Instances to attach: #{instances_to_attach}")
+
       instances_to_detach = stacks[:stack_to_delete].nil? ? [] : stacks[:stack_to_delete].get_instance_ids
+      write_log(stacks[:stack_to_delete].stack_name, "Instances to detach: #{instances_to_detach}")
 
       missing = desired
       while missing > 0
