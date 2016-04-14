@@ -99,7 +99,7 @@ module AutoCanary24
       missing = desired
       while missing > 0
 
-        write_log(stacks[:stack_to_create].stack_name, "Adding #{instances_to_toggle} instances (#{desired-missing+instances_to_toggle}/#{desired})")
+        write_log(stacks[:stack_to_create].stack_name, "Adding #{instances_to_toggle} instances (#{instances_to_attach[desired-missing, instances_to_toggle]})")
 
         already_attached_instances = instances_to_attach[0, desired-missing+instances_to_toggle]
         already_detached_instances = instances_to_detach[0, desired-missing]
