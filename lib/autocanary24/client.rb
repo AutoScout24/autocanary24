@@ -97,7 +97,7 @@ module AutoCanary24
       write_log(stacks[:stack_to_create].stack_name, "Instances to attach: #{instances_to_attach}")
 
       instances_to_detach = stacks[:stack_to_delete].nil? ? [] : stacks[:stack_to_delete].get_instance_ids
-      write_log(stacks[:stack_to_delete].stack_name, "Instances to detach: #{instances_to_detach}")
+      write_log(stacks[:stack_to_delete].stack_name, "Instances to detach: #{instances_to_detach}") unless stacks[:stack_to_delete].nil?
 
       missing = desired
       while missing > 0
@@ -148,7 +148,7 @@ module AutoCanary24
       write_log("", "Rollback triggered")
       begin
         stacks[:stack_to_create].detach_instances_from_elb(elb, already_attached_instances)
-        stacks[:stack_to_delete].attach_instances_to_elb_and_wait(elb, already_detached_instances)
+        stacks[:stack_to_delete].attach_instances_to_elb_and_wait(elb, already_detached_instances) unless stacks[:stack_to_delete].nil?
       rescue Exception => e
         write_log("", "ROLLBACK FAILED: #{e}")
       end
