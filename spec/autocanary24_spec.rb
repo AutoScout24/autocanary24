@@ -70,6 +70,7 @@ describe AutoCanary24::Client do
         allow(green_cs).to receive(:is_attached_to).with(elb).and_return(true)
         allow(blue_cs).to receive(:is_attached_to).with(elb).and_return(false)
         allow(green_cs).to receive(:get_desired_capacity).and_return(5)
+        allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
         allow(blue_cs).to receive(:set_desired_capacity_and_wait)
         allow(blue_cs).to receive(:suspend_asg_processes)
         allow(green_cs).to receive(:suspend_asg_processes)
@@ -82,6 +83,7 @@ describe AutoCanary24::Client do
       it 'should be 5 instances after creation' do
         allow(green_cs).to receive(:is_attached_to).with(elb).and_return(true)
         allow(green_cs).to receive(:get_desired_capacity).and_return(5)
+        allow(blue_cs).to receive(:get_desired_capacity).and_return(3)
         allow(blue_cs).to receive(:suspend_asg_processes)
         allow(green_cs).to receive(:suspend_asg_processes)
         allow(ac24).to receive(:create_stack)
@@ -94,6 +96,7 @@ describe AutoCanary24::Client do
       it 'should suspend processes from both ASG' do
         allow(green_cs).to receive(:is_attached_to).with(elb).and_return(true)
         allow(green_cs).to receive(:get_desired_capacity).and_return(5)
+        allow(blue_cs).to receive(:get_desired_capacity).and_return(5)
         allow(blue_cs).to receive(:set_desired_capacity_and_wait)
         allow(ac24).to receive(:create_stack)
 
