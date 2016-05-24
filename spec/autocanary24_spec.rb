@@ -80,7 +80,7 @@ describe AutoCanary24::Client do
         ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
       end
 
-      it 'should be 5 instances after creation' do
+      it 'should be 5 instances after creation if the blue desired capacity is 3' do
         allow(green_cs).to receive(:is_attached_to).with(elb).and_return(true)
         allow(green_cs).to receive(:get_desired_capacity).and_return(5)
         allow(blue_cs).to receive(:get_desired_capacity).and_return(3)
@@ -89,6 +89,19 @@ describe AutoCanary24::Client do
         allow(ac24).to receive(:create_stack)
 
         expect(blue_cs).to receive(:set_desired_capacity_and_wait).with(5)
+
+        ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
+      end
+
+      it 'should not set desired capacity if the blue desired capacity is 7' do
+        allow(green_cs).to receive(:is_attached_to).with(elb).and_return(true)
+        allow(green_cs).to receive(:get_desired_capacity).and_return(5)
+        allow(blue_cs).to receive(:get_desired_capacity).and_return(7)
+        allow(blue_cs).to receive(:suspend_asg_processes)
+        allow(green_cs).to receive(:suspend_asg_processes)
+        allow(ac24).to receive(:create_stack)
+
+        expect(blue_cs).not_to receive(:set_desired_capacity_and_wait)
 
         ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
       end
