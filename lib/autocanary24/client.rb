@@ -75,10 +75,14 @@ module AutoCanary24
       create_stack(stacks[:stack_to_create].stack_name, template, parameters, parent_stack_name, tags)
 
       unless stacks[:stack_to_delete].nil?
-        desired = stacks[:stack_to_delete].get_desired_capacity
-        write_log(stacks[:stack_to_delete].stack_name, "Found #{desired} instances")
+        current_desired_capacity = stacks[:stack_to_delete].get_desired_capacity
+        write_log(stacks[:stack_to_delete].stack_name, "Found #{current_desired_capacity} instances")
 
-        stacks[:stack_to_create].set_desired_capacity_and_wait(desired)
+        to_create_desired_capacity = stacks[:stack_to_create].get_desired_capacity
+        if current_desired_capacity > to_create_desired_capacity
+          write_log(stacks[:stack_to_create].stack_name, "Will set DesiredCapacity to #{current_desired_capacity}")
+          stacks[:stack_to_create].set_desired_capacity_and_wait(current_desired_capacity)
+        end
         stacks[:stack_to_delete].suspend_asg_processes
       end
 
