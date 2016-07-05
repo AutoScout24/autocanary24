@@ -77,7 +77,9 @@ module AutoCanary24
     def get_instance_ids
       asg = get_autoscaling_group
       asg_client = Aws::AutoScaling::Client.new
-      describe_asg(asg)[:instances].map{ |i| { instance_id: i[:instance_id] } }
+      describe_asg(asg)[:instances] \
+        .select { |i| i[:lifecycle_state]=="InService" } \
+        .map{ |i| { instance_id: i[:instance_id] } }
     end
 
 
@@ -94,7 +96,10 @@ module AutoCanary24
         puts "WARNING: ASG still on the ELB!"
       end
 
-      instances = auto_scaling_group[:instances].map{ |i| { instance_id: i[:instance_id] } }
+      instances = auto_scaling_group[:instances] \
+        .select { |i| i[:lifecycle_state]=="InService" } \
+        .map{ |i| { instance_id: i[:instance_id] } }
+
       wait_for_instances_detached_from_elb(instances, elb)
     end
 
@@ -121,7 +126,10 @@ module AutoCanary24
         puts "WARNING: ASG not on the ELB yet!"
       end
 
-      instances = auto_scaling_group[:instances].map{ |i| { instance_id: i[:instance_id] } }
+      instances = auto_scaling_group[:instances] \
+        .select { |i| i[:lifecycle_state]=="InService" } \
+        .map{ |i| { instance_id: i[:instance_id] } }
+
       wait_for_instances_attached_to_elb(instances, elb)
     end
 

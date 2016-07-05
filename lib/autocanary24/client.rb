@@ -75,10 +75,14 @@ module AutoCanary24
       create_stack(stacks[:stack_to_create].stack_name, template, parameters, parent_stack_name, tags)
 
       unless stacks[:stack_to_delete].nil?
-        desired = stacks[:stack_to_delete].get_desired_capacity
-        write_log(stacks[:stack_to_delete].stack_name, "Found #{desired} instances")
+        current_desired_capacity = stacks[:stack_to_delete].get_desired_capacity
+        write_log(stacks[:stack_to_delete].stack_name, "Found #{current_desired_capacity} instances")
 
-        stacks[:stack_to_create].set_desired_capacity_and_wait(desired)
+        to_create_desired_capacity = stacks[:stack_to_create].get_desired_capacity
+        if current_desired_capacity > to_create_desired_capacity
+          write_log(stacks[:stack_to_create].stack_name, "Will set DesiredCapacity to #{current_desired_capacity}")
+          stacks[:stack_to_create].set_desired_capacity_and_wait(current_desired_capacity)
+        end
         stacks[:stack_to_delete].suspend_asg_processes
       end
 
@@ -94,12 +98,15 @@ module AutoCanary24
       instances_to_toggle = 1 if (instances_to_toggle < 1)
 
       instances_to_attach = stacks[:stack_to_create].get_instance_ids
+      write_log(stacks[:stack_to_create].stack_name, "Instances to attach: #{instances_to_attach}")
+
       instances_to_detach = stacks[:stack_to_delete].nil? ? [] : stacks[:stack_to_delete].get_instance_ids
+      write_log(stacks[:stack_to_delete].stack_name, "Instances to detach: #{instances_to_detach}") unless stacks[:stack_to_delete].nil?
 
       missing = desired
       while missing > 0
 
-        write_log(stacks[:stack_to_create].stack_name, "Adding #{instances_to_toggle} instances (#{desired-missing+instances_to_toggle}/#{desired})")
+        write_log(stacks[:stack_to_create].stack_name, "Adding #{instances_to_toggle} instances (#{instances_to_attach[desired-missing, instances_to_toggle]})")
 
         already_attached_instances = instances_to_attach[0, desired-missing+instances_to_toggle]
         already_detached_instances = instances_to_detach[0, desired-missing]
@@ -145,7 +152,7 @@ module AutoCanary24
       write_log("", "Rollback triggered")
       begin
         stacks[:stack_to_create].detach_instances_from_elb(elb, already_attached_instances)
-        stacks[:stack_to_delete].attach_instances_to_elb_and_wait(elb, already_detached_instances)
+        stacks[:stack_to_delete].attach_instances_to_elb_and_wait(elb, already_detached_instances) unless stacks[:stack_to_delete].nil?
       rescue Exception => e
         write_log("", "ROLLBACK FAILED: #{e}")
       end
