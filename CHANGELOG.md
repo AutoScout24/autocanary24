@@ -1,6 +1,10 @@
 Unreleased Changes
 ------------------
 
+0.3.0 (2016-07-05)
+------------------
+* Feature - We now ensuring that `wait_timeout` is passed through to Autostacker24.
+
 0.2.1 (2016-05-25)
 ------------------
 * Issue - Unable to deploy stack with higher AutoScalingGroup min-size than the currently running one
