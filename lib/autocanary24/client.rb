@@ -186,11 +186,11 @@ module AutoCanary24
 
     def create_stack(stack_name, template, parameters, parent_stack_name, tags)
       write_log(stack_name, "Create/Update stack")
-      Stacker.create_or_update_stack(stack_name, template, parameters, parent_stack_name, tags)
+      Stacker.create_or_update_stack(stack_name, template, parameters, parent_stack_name, tags, @configuration.wait_timeout)
     end
 
     def delete_stack(stack_name)
-      Stacker.delete_stack(stack_name) unless stack_name.nil?
+      Stacker.delete_stack(stack_name, @configuration.wait_timeout) unless stack_name.nil?
     end
 
     def get_canary_stack(stack_name)
