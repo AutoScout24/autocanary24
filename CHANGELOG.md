@@ -1,6 +1,10 @@
 Unreleased Changes
 ------------------
 
+0.4.1 (2016-10-27)
+------------------
+* Fix AZ rebalancing is disturbing the deployment
+
 0.4.0 (2016-10-27)
 ------------------
 * Feature - More relaxed dependency to AutoStacker24 versions
