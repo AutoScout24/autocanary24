@@ -61,14 +61,14 @@ module AutoCanary24
     end
 
     def suspend_asg_processes
-      processes = ['Launch', 'Terminate', 'AddToLoadBalancer', 'AlarmNotification']
+      processes = ['Launch', 'Terminate', 'AddToLoadBalancer', 'AlarmNotification', 'AZRebalance']
       asg = get_autoscaling_group
       asg_client = Aws::AutoScaling::Client.new
       asg_client.suspend_processes({auto_scaling_group_name: asg, scaling_processes: processes})
     end
 
     def resume_asg_processes
-      processes = ['Launch', 'Terminate', 'AddToLoadBalancer', 'AlarmNotification']
+      processes = ['Launch', 'Terminate', 'AddToLoadBalancer', 'AlarmNotification', 'AZRebalance']
       asg = get_autoscaling_group
       asg_client = Aws::AutoScaling::Client.new
       asg_client.resume_processes({auto_scaling_group_name: asg, scaling_processes: processes})
