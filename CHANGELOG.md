@@ -1,6 +1,10 @@
 Unreleased Changes
 ------------------
 
+0.4.0 (2016-10-27)
+------------------
+* Feature - More relaxed dependency to AutoStacker24 versions
+
 0.3.0 (2016-07-05)
 ------------------
 * Feature - We now ensuring that `wait_timeout` is passed through to Autostacker24.
