@@ -1,6 +1,10 @@
 Unreleased Changes
 ------------------
 
+0.4.2 (2016-12-07)
+------------------
+* Fix timeout when existing ASG is empty
+
 0.4.1 (2016-10-27)
 ------------------
 * Fix AZ rebalancing is disturbing the deployment
