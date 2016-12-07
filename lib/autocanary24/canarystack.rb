@@ -100,7 +100,9 @@ module AutoCanary24
         .select { |i| i[:lifecycle_state]=="InService" } \
         .map{ |i| { instance_id: i[:instance_id] } }
 
-      wait_for_instances_detached_from_elb(instances, elb)
+      if instances.length > 0
+        wait_for_instances_detached_from_elb(instances, elb)
+      end
     end
 
     def wait_for_instances_detached_from_elb(instances, elb)
