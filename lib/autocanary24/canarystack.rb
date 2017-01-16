@@ -96,9 +96,16 @@ module AutoCanary24
         puts "WARNING: ASG still on the ELB!"
       end
 
-      instances = auto_scaling_group[:instances] \
+      asg_instances = auto_scaling_group[:instances] \
         .select { |i| i[:lifecycle_state]=="InService" } \
         .map{ |i| { instance_id: i[:instance_id] } }
+
+      elb_client = Aws::ElasticLoadBalancing::Client.new
+      elb_instances = elb_client.describe_instance_health({load_balancer_name: elb})[:instance_states] \
+        .map{ |i| { instance_id: i[:instance_id] } }
+
+      # Remove instances that are not registered at the ELB
+      instances = elb_instances & asg_instances
 
       if instances.length > 0
         wait_for_instances_detached_from_elb(instances, elb)
