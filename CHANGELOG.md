@@ -1,5 +1,8 @@
-Unreleased Changes
+0.4.3 (2017-01-16)
 ------------------
+* Issue - Unable to deploy stack with higher AutoScalingGroup min-size than the currently running one
+
+    See [related GitHub pull request #10](https://github.com/AutoScout24/autocanary24/pull/10) and [related GitHub issue #9](https://github.com/AutoScout24/autocanary24/issues/9).
 
 0.4.2 (2016-12-07)
 ------------------

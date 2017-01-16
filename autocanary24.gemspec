@@ -7,7 +7,7 @@ Gem::Specification.new do |spec|
   spec.name          = "autocanary24"
   spec.version       = AutoCanary24::VERSION
   spec.authors       = ["Philipp Garbe"]
-  spec.email         = ["pgarbe@autoscout24.com"]
+  spec.email         = ["philipp.garbe@scout24.com"]
 
   spec.summary       = %q{Library for blue/green and canary deployments with CloudFormation.}
   spec.description   = %q{autocanary24 provides a small convenient module for blue/green and canary deployments with CloudFormation.}
