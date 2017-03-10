@@ -152,7 +152,7 @@ module AutoCanary24
       write_log("", "Rollback triggered")
       begin
         stacks[:stack_to_create].detach_instances_from_elb(elb, already_attached_instances)
-        stacks[:stack_to_delete].attach_instances_to_elb_and_wait(elb, already_detached_instances) unless stacks[:stack_to_delete].nil?
+        stacks[:stack_to_delete].attach_instances_to_elb_and_wait(elb, already_detached_instances) unless stacks[:stack_to_delete].nil? || already_detached_instances.empty?
       rescue Exception => e
         write_log("", "ROLLBACK FAILED: #{e}")
       end
