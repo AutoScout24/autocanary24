@@ -1,3 +1,9 @@
+0.4.4 (2017-03-15)
+------------------
+* Issue - Fails to rollback if no new instances were attached to ELB
+
+    See [related GitHub pull request #11](https://github.com/AutoScout24/autocanary24/pull/11) and [related GitHub issue #12](https://github.com/AutoScout24/autocanary24/issues/12).
+
 0.4.3 (2017-01-16)
 ------------------
 * Issue - Unable to deploy stack with higher AutoScalingGroup min-size than the currently running one
