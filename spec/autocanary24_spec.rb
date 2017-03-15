@@ -325,6 +325,29 @@ describe AutoCanary24::Client do
       end
     end
 
+    describe 'when switching from Blue to Green stack and new instances do not get healthy in ECS' do
+      it 'should remove 5 added instances from Green stack from ELB' do
+        allow(ac24).to receive(:after_switch)
+        allow(green_cs).to receive(:attach_instances_to_elb_and_wait).and_raise("Timeout. Couldn't wait for instances...")
+        expect(green_cs).to receive(:detach_instances_from_elb).with(elb, green_instances[0, 5])
+
+        expect {
+          ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
+        }.to raise_error("Deployment failed because of rollback")
+      end
+
+      it 'should add 0 already removed instances from Blue stack to the ELB' do
+        allow(ac24).to receive(:after_switch)
+        allow(green_cs).to receive(:attach_instances_to_elb_and_wait).and_raise("Timeout. Couldn't wait for instances...")
+        allow(green_cs).to receive(:detach_instances_from_elb).with(elb, green_instances[0, 5])
+        expect(blue_cs).not_to receive(:attach_instances_to_elb_and_wait).with(elb, blue_instances[0, 0])
+
+        expect {
+          ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
+        }.to raise_error("Deployment failed because of rollback")
+      end
+    end
+
     describe 'when a rollback was triggered' do
       let(:deployment_check) { lambda { |stacks, elb, new_attached_instances| false } }
 
@@ -364,7 +387,7 @@ describe AutoCanary24::Client do
       it 'should add 0 already removed instances from Blue stack to the ELB' do
         allow(ac24).to receive(:after_switch)
         allow(green_cs).to receive(:detach_instances_from_elb).with(elb, green_instances[0, 3])
-        expect(blue_cs).to receive(:attach_instances_to_elb_and_wait).with(elb, blue_instances[0, 0])
+        expect(blue_cs).not_to receive(:attach_instances_to_elb_and_wait).with(elb, blue_instances[0, 0])
 
         expect {
           ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
