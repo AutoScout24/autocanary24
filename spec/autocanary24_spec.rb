@@ -124,7 +124,7 @@ describe AutoCanary24::Client do
   context 'Switch (Blue/Green)' do
     before do
       stacks = {stack_to_create: green_cs, stack_to_delete: blue_cs}
-      allow(ac24).to receive(:get_stacks_to_create_and_to_delete_for).and_return(stacks)
+      allow(ac24).to receive(:determine_stacks_to_create_and_to_delete_for).and_return(stacks)
 
       allow(ac24).to receive(:before_switch)
       allow(ac24).to receive(:after_switch)
@@ -157,7 +157,7 @@ describe AutoCanary24::Client do
   context 'Canary deployment' do
     before do
       stacks = {stack_to_create: green_cs, stack_to_delete: blue_cs}
-      allow(ac24).to receive(:get_stacks_to_create_and_to_delete_for).and_return(stacks)
+      allow(ac24).to receive(:determine_stacks_to_create_and_to_delete_for).and_return(stacks)
 
       allow(ac24).to receive(:before_switch)
       allow(ac24).to receive(:after_switch)
@@ -259,7 +259,7 @@ describe AutoCanary24::Client do
   context 'After switch' do
     before do
       stacks = {stack_to_create: green_cs, stack_to_delete: blue_cs}
-      allow(ac24).to receive(:get_stacks_to_create_and_to_delete_for).and_return(stacks)
+      allow(ac24).to receive(:determine_stacks_to_create_and_to_delete_for).and_return(stacks)
 
       allow(ac24).to receive(:before_switch)
       allow(ac24).to receive(:switch)
@@ -291,7 +291,7 @@ describe AutoCanary24::Client do
   context 'Rollback' do
     before do
       stacks = {stack_to_create: green_cs, stack_to_delete: blue_cs}
-      allow(ac24).to receive(:get_stacks_to_create_and_to_delete_for).and_return(stacks)
+      allow(ac24).to receive(:determine_stacks_to_create_and_to_delete_for).and_return(stacks)
 
       allow(ac24).to receive(:before_switch)
 
