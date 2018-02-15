@@ -60,9 +60,7 @@ module AutoCanary24
 
       old_stack = stacks[:stack_to_create]
 
-      unless old_stack.nil?
-        delete_stack(old_stack.stack_name)
-      end
+      delete_stack(old_stack.stack_name)
     end
 
     private

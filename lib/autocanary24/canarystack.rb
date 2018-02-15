@@ -32,7 +32,7 @@ module AutoCanary24
     def is_attached_to(elb)
       asg = get_autoscaling_group
       elbs = get_attached_loadbalancers(asg) unless asg.nil?
-      (!elbs.nil? && elbs.any? { |e| e.load_balancer_name == elb })
+      (!elbs.nil? && elbs.any? { |e| e.load_balancer_name == elb && e.state != "Removing" && e.state != "Removed" })
     end
 
     def attach_instances_to_elb_and_wait(elb, instances)
