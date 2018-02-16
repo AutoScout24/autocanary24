@@ -82,6 +82,14 @@ module AutoCanary24
         .map{ |i| { instance_id: i[:instance_id] } }
     end
 
+    def is_stack_created?
+      begin
+        get_instance_ids
+      rescue
+        return false
+      end
+      true
+    end
 
     private
     def describe_asg(asg)

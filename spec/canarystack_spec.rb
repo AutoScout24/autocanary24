@@ -40,5 +40,24 @@ describe AutoCanary24::CanaryStack do
 
         expect(stack.is_attached_to(elb_name)).to equal(false)
       end
-  end
+    end
+
+    context 'isStackCreated?' do
+      describe 'when a stack is not created' do
+        it 'should return false' do
+          stack = AutoCanary24::CanaryStack.new('mystack-B', 300)
+
+          expect(stack.is_stack_created?).to equal(false)
+        end
+      end
+
+      describe 'when a stack is created' do
+        it 'should return true' do
+          stack = AutoCanary24::CanaryStack.new('mystack-B', 300)
+          allow(stack).to receive(:get_instance_ids)
+
+          expect(stack.is_stack_created?).to equal(true)
+        end
+      end
+    end
 end
