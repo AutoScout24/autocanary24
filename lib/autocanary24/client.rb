@@ -60,13 +60,18 @@ module AutoCanary24
 
       old_stack = stacks[:stack_to_create]
 
-      delete_stack(old_stack.stack_name)
+      if old_stack.is_stack_created?
+        delete_stack(old_stack.stack_name)
+      end
     end
 
     private
     def attach_stack_to_create_and_detach_stack_to_delete(elb, stacks)
       write_log(stacks[:stack_to_create].stack_name, "Attach to ELB #{elb}")
-      stacks[:stack_to_create].attach_asg_to_elb_and_wait(elb)
+
+      if stacks[:stack_to_create].is_stack_created?
+        stacks[:stack_to_create].attach_asg_to_elb_and_wait(elb)
+      end
 
       unless stacks[:stack_to_delete].nil?
         write_log(stacks[:stack_to_delete].stack_name, "Detach from ELB #{elb}")
