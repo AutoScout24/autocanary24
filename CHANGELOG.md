@@ -1,3 +1,9 @@
+0.5.0 (2018-02-21)
+------------------
+* Feature - New methods on the AutoCanary client for rolling back and cleaning up
+
+    See [related GitHub pull request #15](https://github.com/AutoScout24/autocanary24/pull/15).
+
 0.4.4 (2017-03-15)
 ------------------
 * Issue - Fails to rollback if no new instances were attached to ELB

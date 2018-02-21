@@ -1,6 +1,6 @@
 # AutoCanary24
 
-[![Build Status](https://travis-ci.org/AutoScout24/autocanary24.svg)](https://travis-ci.org/AutoScout24/autocanary24)
+[![Build Status](https://travis-ci.org/Scout24/autocanary24.svg)](https://travis-ci.org/Scout24/autocanary24)
 
 AutoCanary24 is a ruby utility to do [blue/green](http://martinfowler.com/bliki/BlueGreenDeployment.html) and [canary](http://martinfowler.com/bliki/CanaryRelease.html) deployments with AWS CloudFormation stacks.
 
