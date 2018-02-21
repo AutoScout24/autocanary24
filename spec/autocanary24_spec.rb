@@ -124,7 +124,7 @@ describe AutoCanary24::Client do
   context 'Switch (Blue/Green)' do
     before do
       stacks = {stack_to_create: green_cs, stack_to_delete: blue_cs}
-      allow(ac24).to receive(:get_stacks_to_create_and_to_delete_for).and_return(stacks)
+      allow(ac24).to receive(:determine_stacks_to_create_and_to_delete_for).and_return(stacks)
 
       allow(ac24).to receive(:before_switch)
       allow(ac24).to receive(:after_switch)
@@ -157,7 +157,7 @@ describe AutoCanary24::Client do
   context 'Canary deployment' do
     before do
       stacks = {stack_to_create: green_cs, stack_to_delete: blue_cs}
-      allow(ac24).to receive(:get_stacks_to_create_and_to_delete_for).and_return(stacks)
+      allow(ac24).to receive(:determine_stacks_to_create_and_to_delete_for).and_return(stacks)
 
       allow(ac24).to receive(:before_switch)
       allow(ac24).to receive(:after_switch)
@@ -259,7 +259,7 @@ describe AutoCanary24::Client do
   context 'After switch' do
     before do
       stacks = {stack_to_create: green_cs, stack_to_delete: blue_cs}
-      allow(ac24).to receive(:get_stacks_to_create_and_to_delete_for).and_return(stacks)
+      allow(ac24).to receive(:determine_stacks_to_create_and_to_delete_for).and_return(stacks)
 
       allow(ac24).to receive(:before_switch)
       allow(ac24).to receive(:switch)
@@ -291,7 +291,7 @@ describe AutoCanary24::Client do
   context 'Rollback' do
     before do
       stacks = {stack_to_create: green_cs, stack_to_delete: blue_cs}
-      allow(ac24).to receive(:get_stacks_to_create_and_to_delete_for).and_return(stacks)
+      allow(ac24).to receive(:determine_stacks_to_create_and_to_delete_for).and_return(stacks)
 
       allow(ac24).to receive(:before_switch)
 
@@ -416,6 +416,139 @@ describe AutoCanary24::Client do
         expect {
           ac24.deploy_stack(stack_name, template, parameters, tags, deployment_check)
         }.to raise_error("Deployment failed because of rollback")
+      end
+    end
+  end
+
+  context 'Cleanup after successful health check' do
+    describe 'when blue stack is currently attached and green stack is detached and kept inactive' do
+      let(:ac24) {AutoCanary24::Client.new({keep_inactive_stack: true})}
+
+      it 'should clean the green stack' do
+        allow(blue_cs).to receive(:is_attached_to).with(elb).and_return(true)
+        allow(green_cs).to receive(:is_attached_to).with(elb).and_return(false)
+        allow(ac24).to receive(:get_stacks_to_create_and_to_delete).with(stack_name, elb).and_return(
+            {stack_to_create: green_cs, stack_to_delete: blue_cs})
+
+        expect(ac24).to receive(:delete_stack).with(green_cs.stack_name).exactly(1).times
+
+        ac24.cleanup_stack(stack_name)
+      end
+    end
+
+    describe 'when green stack is currently attached and blue stack is detached and kept inactive' do
+      let(:ac24) {AutoCanary24::Client.new({keep_inactive_stack: true})}
+
+      it 'should clean the blue stack' do
+        allow(green_cs).to receive(:is_attached_to).with(elb).and_return(true)
+        allow(blue_cs).to receive(:is_attached_to).with(elb).and_return(false)
+        allow(ac24).to receive(:get_stacks_to_create_and_to_delete).with(stack_name, elb).and_return(
+            {stack_to_create: blue_cs, stack_to_delete: green_cs})
+
+        expect(ac24).to receive(:delete_stack).with(blue_cs.stack_name).exactly(1).times
+
+        ac24.cleanup_stack(stack_name)
+      end
+    end
+
+    describe 'when blue stack is currently attached and green stack does not exist' do
+      let(:ac24) {AutoCanary24::Client.new({keep_inactive_stack: true})}
+
+      it 'should not clean the green stack' do
+        allow(blue_cs).to receive(:is_attached_to).with(elb).and_return(true)
+        allow(green_cs).to receive(:is_attached_to).with(elb).and_return(false)
+        allow(green_cs).to receive(:is_stack_created?).and_return(false)
+        allow(ac24).to receive(:get_stacks_to_create_and_to_delete).with(stack_name, elb).and_return(
+            {stack_to_create: green_cs, stack_to_delete: blue_cs})
+
+        expect(ac24).to receive(:delete_stack).with(green_cs.stack_name).exactly(0).times
+
+        ac24.cleanup_stack(stack_name)
+      end
+    end
+
+    describe 'when green stack is currently attached and blue stack does not exist' do
+      let(:ac24) {AutoCanary24::Client.new({keep_inactive_stack: true})}
+
+      it 'should not clean the blue stack' do
+        allow(green_cs).to receive(:is_attached_to).with(elb).and_return(true)
+        allow(blue_cs).to receive(:is_attached_to).with(elb).and_return(false)
+        allow(blue_cs).to receive(:is_stack_created?).and_return(false)
+        allow(ac24).to receive(:get_stacks_to_create_and_to_delete).with(stack_name, elb).and_return(
+            {stack_to_create: blue_cs, stack_to_delete: green_cs})
+
+        expect(ac24).to receive(:delete_stack).with(blue_cs.stack_name).exactly(0).times
+
+        ac24.cleanup_stack(stack_name)
+      end
+    end
+
+  end
+
+  context 'Rollback after unsuccessful health check' do
+    describe 'when blue stack is currently attached and green stack is detached and kept inactive' do
+      let(:ac24) {AutoCanary24::Client.new({keep_inactive_stack: true})}
+
+      it 'should clean the blue stack and reattach the green stack' do
+        allow(blue_cs).to receive(:is_attached_to).with(elb).and_return(true)
+        allow(green_cs).to receive(:is_attached_to).with(elb).and_return(false)
+        allow(ac24).to receive(:get_stacks_to_create_and_to_delete).with(stack_name, elb).and_return(
+            {stack_to_create: green_cs, stack_to_delete: blue_cs})
+
+        expect(green_cs).to receive(:attach_asg_to_elb_and_wait).with(elb).exactly(1).times
+        expect(blue_cs).to receive(:detach_asg_from_elb_and_wait).with(elb).exactly(1).times
+
+        ac24.rollback_stack(stack_name)
+      end
+    end
+
+    describe 'when green stack is currently attached and blue stack is detached and kept inactive' do
+      let(:ac24) {AutoCanary24::Client.new({keep_inactive_stack: true})}
+
+      it 'should clean the blue stack and reattach the green stack' do
+        allow(blue_cs).to receive(:is_attached_to).with(elb).and_return(false)
+        allow(green_cs).to receive(:is_attached_to).with(elb).and_return(true)
+        allow(ac24).to receive(:get_stacks_to_create_and_to_delete).with(stack_name, elb).and_return(
+            {stack_to_create: blue_cs, stack_to_delete: green_cs})
+
+        expect(blue_cs).to receive(:attach_asg_to_elb_and_wait).with(elb).exactly(1).times
+        expect(green_cs).to receive(:detach_asg_from_elb_and_wait).with(elb).exactly(1).times
+
+        ac24.rollback_stack(stack_name)
+      end
+    end
+
+    describe 'when blue stack is currently attached and green stack does not exist' do
+      let(:ac24) {AutoCanary24::Client.new({keep_inactive_stack: true})}
+
+      it 'should clean the blue stack and not reattach the green stack' do
+        allow(blue_cs).to receive(:is_attached_to).with(elb).and_return(true)
+        allow(green_cs).to receive(:is_attached_to).with(elb).and_return(false)
+        allow(green_cs).to receive(:is_stack_created?).and_return(false)
+        allow(ac24).to receive(:get_stacks_to_create_and_to_delete).with(stack_name, elb).and_return(
+            {stack_to_create: green_cs, stack_to_delete: blue_cs})
+
+        expect(green_cs).to receive(:attach_asg_to_elb_and_wait).with(elb).exactly(0).times
+        expect(blue_cs).to receive(:detach_asg_from_elb_and_wait).with(elb).exactly(1).times
+
+        ac24.rollback_stack(stack_name)
+      end
+    end
+
+    describe 'when green stack is currently attached and blue stack does not exist' do
+      let(:ac24) {AutoCanary24::Client.new({keep_inactive_stack: true})}
+
+      it 'should clean the blue stack and not reattach the green stack' do
+        allow(blue_cs).to receive(:is_attached_to).with(elb).and_return(false)
+        allow(green_cs).to receive(:is_attached_to).with(elb).and_return(true)
+        allow(blue_cs).to receive(:is_stack_created?).and_return(false)
+        allow(ac24).to receive(:get_stacks_to_create_and_to_delete).with(stack_name, elb).and_return(
+            {stack_to_create: blue_cs, stack_to_delete: green_cs})
+
+        expect(blue_cs).to receive(:attach_asg_to_elb_and_wait).with(elb).exactly(0).times
+        expect(green_cs).to receive(:detach_asg_from_elb_and_wait).with(elb).exactly(1).times
+
+        ac24.rollback_stack(stack_name)
       end
     end
   end

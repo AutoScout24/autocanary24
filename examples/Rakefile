@@ -76,6 +76,46 @@ task :sample_4 do
   client.deploy_stack(STACK_NAME, ASG_TEMPLATE, ASG_PARAMETER, TAGS, deployment_check)
 end
 
+desc 'switch complete stacks at once keeping and rollback after health check fails'
+task :sample_5 do
+  puts 'executing sample_5: switch complete stacks at once keeping and rollback after health check fails'
+
+  # 1) Create the base stack which includes at least the ELB
+  Stacker.create_or_update_stack(STACK_NAME, BASE_TEMPLATE, {}, nil, TAGS)
+
+  # 2) Create the stack which includes the ASG
+  client = AutoCanary24::Client.new({:keep_inactive_stack => true})
+  client.deploy_stack(STACK_NAME, ASG_TEMPLATE, ASG_PARAMETER, TAGS)
+
+  breaking_deployment_check = false
+
+  if breaking_deployment_check
+    client.cleanup_stack(STACK_NAME)
+  else
+    client.rollback_stack(STACK_NAME)
+  end
+end
+
+desc 'switch complete stacks at once keeping and clean up after health check succeeds'
+task :sample_6 do
+  puts 'executing sample_6: switch complete stacks at once keeping and clean up after health check succeeds'
+
+  # 1) Create the base stack which includes at least the ELB
+  Stacker.create_or_update_stack(STACK_NAME, BASE_TEMPLATE, {}, nil, TAGS)
+
+  # 2) Create the stack which includes the ASG
+  client = AutoCanary24::Client.new({:keep_inactive_stack => true})
+  client.deploy_stack(STACK_NAME, ASG_TEMPLATE, ASG_PARAMETER, TAGS)
+
+  successful_deployment_check = true
+
+  if successful_deployment_check
+    client.cleanup_stack(STACK_NAME)
+  else
+    client.rollback_stack(STACK_NAME)
+  end
+end
+
 task :cleanup do
   puts 'executing cleanup'
 

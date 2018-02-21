@@ -20,10 +20,7 @@ module AutoCanary24
         elb = get_elb(parent_stack_name)
         raise "No ELB found in stack #{parent_stack_name}" if elb.nil?
 
-        blue_cs = get_canary_stack("#{parent_stack_name}-B")
-        green_cs = get_canary_stack("#{parent_stack_name}-G")
-
-        stacks = get_stacks_to_create_and_to_delete_for(blue_cs, green_cs, elb)
+        stacks = get_stacks_to_create_and_to_delete(parent_stack_name, elb)
 
         before_switch(stacks, template, parameters, parent_stack_name, tags)
 
@@ -44,8 +41,52 @@ module AutoCanary24
 
     end
 
+    def rollback_stack(parent_stack_name)
+      write_log(parent_stack_name,"Rolling back stack")
+
+      elb = get_elb(parent_stack_name)
+
+      stacks = get_stacks_to_create_and_to_delete(parent_stack_name, elb)
+
+      attach_stack_to_create_and_detach_stack_to_delete(elb, stacks)
+    end
+
+    def cleanup_stack(parent_stack_name)
+      write_log(parent_stack_name,"Cleaning up stack")
+
+      elb = get_elb(parent_stack_name)
+
+      stacks = get_stacks_to_create_and_to_delete(parent_stack_name, elb)
+
+      old_stack = stacks[:stack_to_create]
+
+      if old_stack.is_stack_created?
+        delete_stack(old_stack.stack_name)
+      end
+    end
+
     private
-    def get_stacks_to_create_and_to_delete_for(blue_cs, green_cs, elb)
+    def attach_stack_to_create_and_detach_stack_to_delete(elb, stacks)
+      write_log(stacks[:stack_to_create].stack_name, "Attach to ELB #{elb}")
+
+      if stacks[:stack_to_create].is_stack_created?
+        stacks[:stack_to_create].attach_asg_to_elb_and_wait(elb)
+      end
+
+      unless stacks[:stack_to_delete].nil?
+        write_log(stacks[:stack_to_delete].stack_name, "Detach from ELB #{elb}")
+        stacks[:stack_to_delete].detach_asg_from_elb_and_wait(elb)
+      end
+    end
+
+    def get_stacks_to_create_and_to_delete(parent_stack_name, elb)
+      blue_cs = get_canary_stack("#{parent_stack_name}-B")
+      green_cs = get_canary_stack("#{parent_stack_name}-G")
+
+      determine_stacks_to_create_and_to_delete_for(blue_cs, green_cs, elb)
+    end
+
+    def determine_stacks_to_create_and_to_delete_for(blue_cs, green_cs, elb)
 
       green_is_attached = green_cs.is_attached_to(elb)
       blue_is_attached = blue_cs.is_attached_to(elb)
@@ -139,13 +180,7 @@ module AutoCanary24
         end
       end
 
-      write_log(stacks[:stack_to_create].stack_name, "Attach to ELB #{elb}")
-      stacks[:stack_to_create].attach_asg_to_elb_and_wait(elb)
-
-      unless stacks[:stack_to_delete].nil?
-        write_log(stacks[:stack_to_delete].stack_name, "Detach from ELB #{elb}")
-        stacks[:stack_to_delete].detach_asg_from_elb_and_wait(elb)
-      end
+      attach_stack_to_create_and_detach_stack_to_delete(elb, stacks)
     end
 
     def rollback(stacks, elb, already_attached_instances, already_detached_instances)
