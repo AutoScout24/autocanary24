@@ -93,6 +93,7 @@ task :sample_5 do
     client.cleanup_stack(STACK_NAME)
   else
     client.rollback_stack(STACK_NAME)
+    raise "Deployment failed because of health check"
   end
 end
 
