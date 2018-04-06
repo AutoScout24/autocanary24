@@ -1,5 +1,6 @@
 require 'aws-sdk-core'
 require 'retriable'
+require 'aws-sdk-elasticloadbalancing'
 
 module AutoCanary24
   class CanaryStack
