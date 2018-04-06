@@ -1,4 +1,5 @@
 require 'aws-sdk-core'
+require 'retriable'
 
 module AutoCanary24
   class CanaryStack
@@ -125,7 +126,10 @@ module AutoCanary24
       retries = (@wait_timeout / @sleep_during_wait).round
       while retries > 0
         begin
-          elb_instances = elb_client.describe_instance_health({load_balancer_name: elb, instances: instances})
+          elb_instances = {}
+          Retriable.retriable(on: Aws::CloudFormation::Errors::Throttling, tries: 5, base_interval: 1) do
+            elb_instances = elb_client.describe_instance_health({load_balancer_name: elb, instances: instances})
+          end
           break if elb_instances[:instance_states].select{ |s| s.state == 'InService' }.length == 0
         rescue Aws::ElasticLoadBalancing::Errors::InvalidInstance
         end
