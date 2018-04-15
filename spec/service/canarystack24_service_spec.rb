@@ -25,32 +25,42 @@ describe AutoCanary24::CanaryStack do
     @elb_client = Aws::ElasticLoadBalancing::Client.new(stub_responses: true)
     allow(Aws::ElasticLoadBalancing::Client).to receive(:new).and_return(@elb_client)
   end
-  
-  describe 'when AWS API returns Aws::CloudFormation::Errors::Throttling "Rate Exceeded" exception' do
-    it 'should back off and retry' do
-      @elb_client.stub_responses(:describe_instance_health,
-        Aws::CloudFormation::Errors::Throttling.new("First parm", "Rate Exceeded"),
-        Aws::CloudFormation::Errors::Throttling.new("First parm", "Rate Exceeded"),
-        @instance_responses
-      )
 
-      stack = AutoCanary24::CanaryStack.new('mystack-B', 300)
+  context 'wait_for_instances_detached_from_elb' do
+    describe 'when AWS API returns Aws::CloudFormation::Errors::Throttling "Rate Exceeded" exception' do
+      it 'should back off and retry' do
+        @elb_client.stub_responses(:describe_instance_health,
+          Aws::CloudFormation::Errors::Throttling.new("First parm", "Rate Exceeded"),
+          Aws::CloudFormation::Errors::Throttling.new("First parm", "Rate Exceeded"),
+          @instance_responses
+        )
 
-      expect(stack.send(:wait_for_instances_detached_from_elb, @instances, elb_name)).to eq nil
+        stack = AutoCanary24::CanaryStack.new('mystack-B', 300)
+
+        expect(stack.send(:wait_for_instances_detached_from_elb, @instances, elb_name)).to eq nil
+      end
+
+      it 'should re-raise the exception after 5 throttling errors' do
+        @elb_client.stub_responses(:describe_instance_health,
+          Aws::CloudFormation::Errors::Throttling.new("First parm", "Rate Exceeded"),
+        )
+
+        stack = AutoCanary24::CanaryStack.new('mystack-B', 300)
+
+        expect{stack.send(:wait_for_instances_detached_from_elb, @instances, elb_name)}.to raise_error(Aws::CloudFormation::Errors::Throttling)
+      end
     end
 
-    it 'should raise exception after 5 throttling errors' do
-      @elb_client.stub_responses(:describe_instance_health,
-        Aws::CloudFormation::Errors::Throttling.new("First parm", "Rate Exceeded"),
-        # Aws::CloudFormation::Errors::Throttling.new("First parm", "Rate Exceeded"),
-        # Aws::CloudFormation::Errors::Throttling.new("First parm", "Rate Exceeded"),
-        # Aws::CloudFormation::Errors::Throttling.new("First parm", "Rate Exceeded"),
-        # Aws::CloudFormation::Errors::Throttling.new("First parm", "Rate Exceeded"),
-      )
+    describe 'when AWS API returns a different exception' do
+      it 'should re-raise the error' do
+        @elb_client.stub_responses(:describe_instance_health,
+          ArgumentError.new("Your argument is invalid!"),
+        )
 
-      stack = AutoCanary24::CanaryStack.new('mystack-B', 300)
-    
-      expect(stack.send(:wait_for_instances_detached_from_elb, @instances, elb_name)).to raise_exception(Aws::CloudFormation::Errors::Throttling)
+        stack = AutoCanary24::CanaryStack.new('mystack-B', 300)
+
+        expect{stack.send(:wait_for_instances_detached_from_elb, @instances, elb_name)}.to raise_error(ArgumentError)
+      end
     end
   end
 end
