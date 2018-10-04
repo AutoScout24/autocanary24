@@ -23,6 +23,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'retriable', '~> 3.1'
   spec.add_dependency 'aws-sdk-core', '~> 3'
   spec.add_dependency 'aws-sdk-elasticloadbalancing', '~> 1.2'
+  spec.add_dependency 'aws-sdk-autoscaling', '~> 1.9'
 
   spec.add_development_dependency "bundler", "~> 1.11"
   spec.add_development_dependency "rake", "~> 10.0"
