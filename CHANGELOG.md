@@ -1,3 +1,19 @@
+0.6.1 (2018-10-04)
+------------------
+* Bug - Fix missing dependency
+
+    See [related GitHub pull request #20](https://github.com/AutoScout24/autocanary24/pull/20).
+
+0.6.0 (2018-04-19)
+------------------
+* Feature - Back-off Retry for AWS API 'Rate Exceeded' Errors
+
+    See [related GitHub pull request #19](https://github.com/AutoScout24/autocanary24/pull/19).
+
+* Feature - Upgrade to aws sdk v3
+
+    See [related GitHub pull request #18](https://github.com/AutoScout24/autocanary24/pull/18).
+
 0.5.0 (2018-02-21)
 ------------------
 * Feature - New methods on the AutoCanary client for rolling back and cleaning up
